@@ -1,6 +1,7 @@
 # Architecture
 
-DustyThready is plain Lua + the WoW widget API. No libraries, no XML. Everything lives in one
+DustyThready is plain Lua + the WoW widget API, no XML. The only libraries are LibStub, CallbackHandler-1.0,
+LibDataBroker-1.1 and LibDBIcon-1.0 (in `DustyThready/Libs/`, for the minimap button only). Everything lives in one
 namespace table `ns` (the second value of `...` in every file), also exposed as `_G.DustyThready`
 for debugging (`/dump DustyThready.Snapshot()`).
 
@@ -29,7 +30,7 @@ DustyThready/
     TabPlaces.lua       "Where": next stops, trainers, recipes, supplies, cloth farms
     TabGold.lua         money cards
     Tooltip.lua         item tooltip lines (TooltipDataProcessor)
-    Minimap.lua         minimap button
+    Minimap.lua         minimap button (LibDataBroker launcher + LibDBIcon)
   Media/
     icon.tga            128x128 32-bit TGA used in game
     icon-source.jpg     original artwork (not packaged)
@@ -101,6 +102,9 @@ first view (`build(page)`), then `refresh(page, snap)` re-lays them out. Rows co
 - Item info may not be cached yet: `ns.ItemInfo` returns nil and requests it; the
   `GET_ITEM_INFO_RECEIVED` event triggers a refresh. Use `ns.ItemName(id)` for display: it falls
   back to `ns.ITEM_NAMES`.
+
+- **Minimap button**: always go through LibDBIcon. Minimap-button managers (e.g. Leatrix Plus)
+  refuse custom buttons and show *This is a custom button* in the tooltip.
 
 ## Saved variables
 

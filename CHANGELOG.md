@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Minimap button now uses LibDBIcon, so minimap-button managers (Leatrix Plus...) handle it.
+- Fixes from code review: disenchant overlay detaches when scrolling, scroll position clamps when lists shrink,
+  trainer-cap marker position, roadmap row heights, wrapping of kept items, cheat-sheet column widths.
+
 ## v1.0.0
 
 First version.

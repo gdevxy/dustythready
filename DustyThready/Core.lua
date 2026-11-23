@@ -37,7 +37,7 @@ function ns.Color(key, text) return "|cff" .. (ns.HEX[key] or "ffffff") .. tostr
 -- Saved variables
 ---------------------------------------------------------------------------
 local DEFAULTS = {
-    minimap = { hide = false, angle = 205 },
+    minimap = { hide = false, minimapPos = 205 },  -- LibDBIcon settings
     tooltip = true,
     window = nil,           -- { point, x, y }
     tab = "today",
