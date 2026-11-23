@@ -1,0 +1,31 @@
+## Interface: 16001
+## Title: |cffb98cffDusty|r|cffe8c170Thready|r
+## Notes: Tailoring + Enchanting, woven together. What to craft next, what it disenchants into, where to train, and how to turn it all into gold.
+## Author: gdevxy
+## Version: 1.0.0
+## IconTexture: Interface\AddOns\DustyThready\Media\icon.tga
+## Category: Professions
+## SavedVariables: DustyThreadyDB
+## SavedVariablesPerCharacter: DustyThreadyCharDB
+## OptionalDeps: Auctionator
+## AddonCompartmentFunc: DustyThready_OnCompartmentClick
+## AddonCompartmentFuncOnEnter: DustyThready_OnCompartmentEnter
+## AddonCompartmentFuncOnLeave: DustyThready_OnCompartmentLeave
+
+Core.lua
+Data\Items.lua
+Data\Tailoring.lua
+Data\Enchanting.lua
+Data\Disenchant.lua
+Data\Places.lua
+Data\Gold.lua
+Logic.lua
+UI\Widgets.lua
+UI\Main.lua
+UI\TabToday.lua
+UI\TabRoadmap.lua
+UI\TabDisenchant.lua
+UI\TabPlaces.lua
+UI\TabGold.lua
+UI\Tooltip.lua
+UI\Minimap.lua
