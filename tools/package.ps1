@@ -12,7 +12,7 @@ $version = (& $git -C $root describe --tags --always 2>$null)
 if (-not $version) { $version = 'dev' }
 $version = $version.Trim()
 
-$ignore = @('.git', '.github', 'docs', 'tools', 'dist', 'README.md', 'CLAUDE.md', '.pkgmeta', '.gitignore', '.gitattributes')
+$ignore = @('.git', '.github', 'docs', 'tools', 'dist', 'promo', 'README.md', 'CLAUDE.md', '.pkgmeta', '.gitignore', '.gitattributes')
 $dist = Join-Path $root 'dist'
 $stage = Join-Path $dist 'stage'
 $out = Join-Path $stage 'DustyThready'

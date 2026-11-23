@@ -6,6 +6,7 @@ ignore:
   - docs
   - tools
   - dist
+  - promo
   - README.md
   - CLAUDE.md
   - Media/icon-source.jpg
