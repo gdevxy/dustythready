@@ -42,7 +42,10 @@ Run through this before each release:
    to disenchant; *Keep* hides an item; *Cheat sheet* lists kept items and un-keeps them.
 6. Enter combat with the window open: you can still move and close it; the Disenchant list says
    it will update after combat; no "action blocked" message.
-7. **Where** and **Gold**: faction filter correct; *Write my ad* opens chat with the text (not sent).
+7. **NPC links** (map icon before a name: Where tab, Roadmap notes, Today alerts): click opens the
+   map on the right zone with the DustyThready pin on the NPC; hover shows coordinates; right-click
+   the pin removes it. Clicking a link in a Today alert doesn't switch to the Where tab.
+   **Where** and **Gold**: faction filter correct; *Write my ad* opens chat with the text (not sent).
 8. Tooltips: a green shows *Disenchants into*; a reagent shows *still needs N*; toggle in Settings.
 9. `/dusty minimap`, `/dusty reset`, drag the minimap button.
 
@@ -54,7 +57,11 @@ All game knowledge is in `Data/`. No logic changes needed for most updates.
   contiguous, `count` = the guide's craft count, `mats` = per-craft amounts.
 - **New item**: add its ID and English name to `ns.ITEM_NAMES` in `Data/Items.lua`, and a
   `ns.SOURCES` line if it is a reagent (`vendor = true` for vendor-only supplies).
-- **Trainer / vendor**: `Data/Places.lua`. Faction code is `"H"`, `"A"` or `"N"` (both).
+- **Trainer / vendor**: `Data/Places.lua`. Faction code is `"H"`, `"A"` or `"N"` (both). Then
+  regenerate the map positions (needs the QuestieDB addon installed in the game):
+  `powershell -ExecutionPolicy Bypass -File tools\extract-npc-coords.ps1`. It rewrites
+  `Data/Coords.lua` and lists NPCs it couldn't place. Supply NPCs that only appear in texts go in the
+  script's `$extra` list.
 - **Disenchant table**: `Data/Disenchant.lua`. Rows are by *required* level.
 - IDs: look them up on `https://www.wowhead.com/forever/` (Forever has its own new IDs, e.g.
   Mote of Magic 247786, Runecloth Cuffs 254123). The AtlasLoot data in the game folder

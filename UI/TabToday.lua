@@ -58,7 +58,14 @@ local function makeProfCard(parent, prof)
     card.alert:SetPoint("BOTTOMRIGHT", -8, 4)
     card.alert:SetJustifyV("MIDDLE")
     af:EnableMouse(true)
-    af:SetScript("OnMouseUp", function() if card.alertTab then ns.Main:Select(card.alertTab) end end)
+    ns.EnableNpcLinks(af)
+    -- Clicking the strip opens the Where tab, unless the click was on an NPC link (that shows the map).
+    af:SetScript("OnMouseUp", function()
+        C_Timer.After(0, function()
+            if af.dtLinkClicked and GetTime() - af.dtLinkClicked < 0.5 then return end
+            if card.alertTab then ns.Main:Select(card.alertTab) end
+        end)
+    end)
     card.alertFrame = af
 
     -- "Next up"
@@ -108,7 +115,7 @@ local function layoutCard(card, snap)
         card.bar:SetCap(nil)
         local t = ns.TrainersFor(prof, "apprentice", snap.faction)[1]
         alertLine(card, ("Learn %s from any trainer, e.g. %s in %s.  (Where tab)")
-            :format(PROF[prof].label, t and t[1] or "?", t and t[2] or "?"), C.warn)
+            :format(PROF[prof].label, t and ns.NpcLink(t[1]) or "?", t and t[2] or "?"), C.warn)
         card.alertTab = "places"
         card.nextLabel:Hide() card.recipe:Hide() card.recipeName:SetText("") card.recipeSub:SetText("")
         card.craft:Hide()
@@ -139,7 +146,7 @@ local function layoutCard(card, snap)
         if train.ready then
             local t = ns.TrainersFor(prof, train.rank.key, snap.faction)[1]
             local cost = train.rank.cost and (" (" .. ns.Money(train.rank.cost) .. ")") or ""
-            alertLine(card, ("Train %s now%s: %s, %s."):format(train.rank.name, cost, t and t[1] or "?", t and t[2] or "?"), C.warn)
+            alertLine(card, ("Train %s now%s: %s, %s."):format(train.rank.name, cost, t and ns.NpcLink(t[1]) or "?", t and t[2] or "?"), C.warn)
         else
             alertLine(card, ("You can train %s at level %d. Until then, skill stops at %d.")
                 :format(train.rank.name, train.levelNeeded, p.max), C.bad)
@@ -150,7 +157,7 @@ local function layoutCard(card, snap)
         local where = ""
         if w then
             for _, v in ipairs(w) do
-                if v[3] == "N" or v[3] == snap.faction then where = v[1] .. ", " .. v[2] break end
+                if v[3] == "N" or v[3] == snap.faction then where = ns.NpcLink(v[1]) .. ", " .. v[2] break end
             end
         end
         alertLine(card, ("Buy %s%s"):format(ns.ItemName(missingItem), where ~= "" and (" from " .. where) or ""), C.warn)

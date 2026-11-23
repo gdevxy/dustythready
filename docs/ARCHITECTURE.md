@@ -21,6 +21,7 @@ for debugging (`/dump DustyThready.Snapshot()`).
     Disenchant.lua      ns.DE_ROWS (required level -> reagents) and ns.DE_ODDS
     Places.lua          ns.TRAINERS, ns.RECIPE_SOURCES, ns.SUPPLIES, ns.CLOTH_FARMS
     Gold.lua            ns.GOLD_CRAFTS (crafts with live profit), ns.BOLTS (bolt vs cloth)
+    Coords.lua          GENERATED ns.NPC_COORDS (name -> UiMapID, x, y) by tools\extract-npc-coords.ps1
   Logic.lua             pure-ish functions over data + game state (see below)
   Craft.lua             one-click crafting: craft state, enchant targets, OpenTradeSkill + CraftRecipe
   UI/
@@ -28,6 +29,7 @@ for debugging (`/dump DustyThready.Snapshot()`).
                         Segmented, LayoutMats (have/need chips)
     Main.lua            window, header, tab bar, footer, settings popover, ns.RegisterTab
     Craft.lua           UI.CraftControl (Craft button + enchant target chip) and the target picker
+    MapPin.lua          NPC links (ns.NpcLink, ns.EnableNpcLinks) and the world-map pin (ns.ShowNpcOnMap)
     TabToday.lua        profession cards + "Thread & Dust" synergy card + bag teaser
     TabRoadmap.lua      step list, route switch, shopping list popover (+ Auctionator export)
     TabDisenchant.lua   bag scan, secure one-click disenchant overlay, cheat sheet
@@ -110,6 +112,14 @@ first view (`build(page)`), then `refresh(page, snap)` re-lays them out. Rows co
   on items use `CraftEnchant(spellID, 1, nil, ItemLocation)`; the fallback casts the recipe and applies
   it with `PickupInventoryItem` / `C_Container.PickupContainerItem` while `SpellIsTargeting()`.
   The enchant's slot is parsed from the step name (`"Enchant Bracer - ..."`).
+- **Map pins** (`UI/MapPin.lua`): `C_Map.SetUserWaypoint` isn't reliable on Forever, so (like
+  ForeverDungeonJournal) we draw our own pin on `WorldMapFrame:GetCanvas()` at
+  `width * x/100, -height * y/100`, shown only while `WorldMapFrame:GetMapID()` is the NPC's map.
+  NPC names are custom hyperlinks `|Hdtnpc:<name>|h...|h`; a frame that shows them needs
+  `ns.EnableNpcLinks(frame)`. The map can't be opened by an addon in combat: the pin waits.
+- **Chat**: links and chat go through `ns.InsertLink` / `ns.OpenChat` (`ChatFrameUtil.*` on this
+  client, old globals as fallback). `IsModifiedClick("CHATLINK")` ignores right clicks: check
+  `IsShiftKeyDown()` for shift-right-click.
 - Item info may not be cached yet: `ns.ItemInfo` returns nil and requests it; the
   `GET_ITEM_INFO_RECEIVED` event triggers a refresh. Use `ns.ItemName(id)` for display: it falls
   back to `ns.ITEM_NAMES`.

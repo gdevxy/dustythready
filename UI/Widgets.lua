@@ -145,7 +145,8 @@ function UI.ItemButton(parent, size)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     b:SetScript("OnClick", function(self, button)
-        if IsModifiedClick("CHATLINK") then
+        -- IsModifiedClick("CHATLINK") only reports left clicks: check Shift ourselves for the right button.
+        if IsModifiedClick("CHATLINK") or (button == "RightButton" and IsShiftKeyDown()) then
             -- Recipe buttons (Today / Roadmap): shift-click links the crafted item,
             -- shift-right-click the pattern/formula (or the recipe if it has none).
             local link

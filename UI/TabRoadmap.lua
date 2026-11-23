@@ -29,6 +29,7 @@ local function makeRow(parent)
     r.notes = UI.Text(r, 11, C.text)
     r.notes:SetPoint("TOPLEFT", r.mats, "BOTTOMLEFT", 0, -4)
     r.notes:SetSpacing(2)
+    ns.EnableNpcLinks(r)
     r.check = r:CreateTexture(nil, "OVERLAY")
     r.check:SetSize(16, 16)
     r.check:SetPoint("TOPRIGHT", -8, -8)
@@ -55,7 +56,9 @@ local function notesFor(prof, step, snap)
         local r
         for _, rr in ipairs(ns.RANKS) do if rr.key == step.rank then r = rr end end
         if r then
-            table.insert(notes, ns.Color("warn", ("Train %s first (skill %d, level %d)"):format(r.name, r.at, r.level)))
+            local t = ns.TrainersFor(prof, r.key, snap.faction)[1]
+            local who = t and ns.Color("muted", " · ") .. ns.NpcLink(t[1], t[1], "muted") .. ns.Color("muted", ", " .. t[2]) or ""
+            table.insert(notes, ns.Color("warn", ("Train %s first (skill %d, level %d)"):format(r.name, r.at, r.level)) .. who)
         end
     end
     local item = step.formula or step.pattern
@@ -67,10 +70,13 @@ local function notesFor(prof, step, snap)
             local where = ""
             if src then
                 for _, v in ipairs(src.where) do
-                    if v[3] == "N" or v[3] == snap.faction then where = " · " .. v[1] .. ", " .. v[2] break end
+                    if v[3] == "N" or v[3] == snap.faction then
+                        where = ns.Color("muted", " · ") .. ns.NpcLink(v[1], v[1], "muted") .. ns.Color("muted", ", " .. v[2])
+                        break
+                    end
                 end
             end
-            table.insert(notes, ns.Color("warn", "Needs " .. ns.ItemName(item)) .. ns.Color("muted", where))
+            table.insert(notes, ns.Color("warn", "Needs " .. ns.ItemName(item)) .. where)
         end
     end
     if prof == "tailoring" then

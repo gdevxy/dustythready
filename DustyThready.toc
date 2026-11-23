@@ -23,12 +23,14 @@ Data\Tailoring.lua
 Data\Enchanting.lua
 Data\Disenchant.lua
 Data\Places.lua
+Data\Coords.lua
 Data\Gold.lua
 Logic.lua
 Craft.lua
 UI\Widgets.lua
 UI\Main.lua
 UI\Craft.lua
+UI\MapPin.lua
 UI\TabToday.lua
 UI\TabRoadmap.lua
 UI\TabDisenchant.lua

@@ -16,13 +16,14 @@ local function makeBlock(parent)
     f.body:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -8)
     f.body:SetPoint("RIGHT", -12, 0)
     f.body:SetSpacing(4)
+    ns.EnableNpcLinks(f)
     return f
 end
 
 local function factionOK(code, faction) return code == "N" or code == faction end
 
 local function trainerLine(t)
-    return ("%s  %s  %s"):format(ns.Color("text", t[1]), ns.Color("gold", t[2]), ns.Color("muted", "· " .. t[3]))
+    return ("%s  %s  %s"):format(ns.NpcLink(t[1], t[1], "text"), ns.Color("gold", t[2]), ns.Color("muted", "· " .. t[3]))
 end
 
 local function nextStops(snap)
@@ -33,7 +34,7 @@ local function nextStops(snap)
         local need = ns.TrainingNeed(prof, snap)
         if need then
             local ts = ns.TrainersFor(prof, need.rank.key, snap.faction)
-            local who = ts[1] and (ts[1][1] .. " (" .. ts[1][2] .. ")") or "?"
+            local who = ts[1] and (ns.NpcLink(ts[1][1]) .. " (" .. ts[1][2] .. ")") or "?"
             if need.notLearned then
                 table.insert(lines, ("%s: learn it from %s. No level needed."):format(label, who))
             elseif need.ready then
@@ -46,7 +47,7 @@ local function nextStops(snap)
             for _, r in ipairs(ns.RANKS) do
                 if r.cap > p.max then
                     local ts = ns.TrainersFor(prof, r.key, snap.faction)
-                    local who = ts[1] and (ts[1][1] .. " (" .. ts[1][2] .. ")") or "?"
+                    local who = ts[1] and (ns.NpcLink(ts[1][1]) .. " (" .. ts[1][2] .. ")") or "?"
                     table.insert(lines, ("%s: %s at skill %d%s: %s."):format(label, r.name, r.at,
                         snap.level < r.level and (" and level " .. r.level) or "", who))
                     break
@@ -62,7 +63,7 @@ local function nextStops(snap)
                     local where = {}
                     if src then
                         for _, w in ipairs(src.where) do
-                            if factionOK(w[3], snap.faction) then table.insert(where, w[1] .. " (" .. w[2] .. ")") end
+                            if factionOK(w[3], snap.faction) then table.insert(where, ns.NpcLink(w[1]) .. " (" .. w[2] .. ")") end
                         end
                     end
                     table.insert(lines, ("%s: buy %s before %d%s"):format(label, ns.Color("warn", ns.ItemName(item)), s.from,
@@ -142,7 +143,7 @@ local function refresh(page, snap)
             local where = {}
             for _, wh in ipairs(src.where) do
                 if factionOK(wh[3], snap.faction) then
-                    table.insert(where, wh[1] .. " " .. ns.Color("gold", wh[2]) .. (wh[4] and ns.Color("muted", " (" .. wh[4] .. ")") or ""))
+                    table.insert(where, ns.NpcLink(wh[1]) .. " " .. ns.Color("gold", wh[2]) .. (wh[4] and ns.Color("muted", " (" .. wh[4] .. ")") or ""))
                 end
             end
             table.insert(rl, ("%s %s  %s\n     %s%s"):format(
@@ -157,7 +158,7 @@ local function refresh(page, snap)
     -- Vendor supplies
     local sl = {}
     for _, s in ipairs(ns.SUPPLIES) do
-        table.insert(sl, ns.Color("gold", s[1]) .. "  " .. ns.Color("muted", s[2]))
+        table.insert(sl, ns.Color("gold", s[1]) .. "  " .. ns.Color("muted", ns.LinkNpcsIn(s[2])))
     end
     add("Vendor supplies " .. ns.Color("muted", "(never pay AH prices for these)"), sl, false)
 

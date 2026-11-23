@@ -9,6 +9,10 @@
   **Enchant** applies it.
 - Recipe icons on Today and the Roadmap link to chat: shift-click for the crafted item,
   shift-right-click for the pattern/formula (or the recipe when a trainer teaches it).
+- NPC names (trainers, pattern and formula vendors, supply vendors) are links: click one to open the
+  world map on its zone with a pin on the NPC (right-click the pin to remove it). TomTom gets a
+  waypoint too. Positions come from QuestieDB's Forever data.
+- Fix: shift-right-click on a recipe icon now links the pattern (it did nothing).
 - Fix: shift-click item links and *Write my ad* use the client's current chat API.
 
 ## v1.0.0
