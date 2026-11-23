@@ -22,10 +22,12 @@ for debugging (`/dump DustyThready.Snapshot()`).
     Places.lua          ns.TRAINERS, ns.RECIPE_SOURCES, ns.SUPPLIES, ns.CLOTH_FARMS
     Gold.lua            ns.GOLD_CRAFTS (crafts with live profit), ns.BOLTS (bolt vs cloth)
   Logic.lua             pure-ish functions over data + game state (see below)
+  Craft.lua             one-click crafting: craft state, enchant targets, OpenTradeSkill + CraftRecipe
   UI/
     Widgets.lua         ns.UI: Panel, Text, Button, Pill, ProgressBar, ItemButton, Scroll, Pool,
                         Segmented, LayoutMats (have/need chips)
     Main.lua            window, header, tab bar, footer, settings popover, ns.RegisterTab
+    Craft.lua           UI.CraftControl (Craft button + enchant target chip) and the target picker
     TabToday.lua        profession cards + "Thread & Dust" synergy card + bag teaser
     TabRoadmap.lua      step list, route switch, shopping list popover (+ Auctionator export)
     TabDisenchant.lua   bag scan, secure one-click disenchant overlay, cheat sheet
@@ -101,6 +103,13 @@ first view (`build(page)`), then `refresh(page, snap)` re-lays them out. Rows co
   parented to UIParent**, positioned by absolute coordinates over the row you hover, and hidden on
   `PLAYER_REGEN_DISABLED`. Its macro is `/cast Disenchant` + `/use <bag> <slot>`.
   It registers `AnyUp, AnyDown` because of the `ActionButtonUseKeyDown` CVar.
+- **Crafting** (`Craft.lua`): `C_TradeSkillUI.CraftRecipe(spellID, n)` works from an addon click
+  (no secure button), but only while that profession is open: check `IsTradeSkillReady()` and
+  `GetBaseProfessionInfo().professionID` (197 / 333), else `OpenTradeSkill(line)` first. If it isn't
+  ready within the same click, the player clicks again: never craft from an event handler. Enchants
+  on items use `CraftEnchant(spellID, 1, nil, ItemLocation)`; the fallback casts the recipe and applies
+  it with `PickupInventoryItem` / `C_Container.PickupContainerItem` while `SpellIsTargeting()`.
+  The enchant's slot is parsed from the step name (`"Enchant Bracer - ..."`).
 - Item info may not be cached yet: `ns.ItemInfo` returns nil and requests it; the
   `GET_ITEM_INFO_RECEIVED` event triggers a refresh. Use `ns.ItemName(id)` for display: it falls
   back to `ns.ITEM_NAMES`.

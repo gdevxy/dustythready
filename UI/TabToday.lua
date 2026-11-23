@@ -81,6 +81,7 @@ local function makeProfCard(parent, prof)
 
     card.matsBox = CreateFrame("Frame", nil, card)
     card.chips = UI.Pool(UI.MatChipFactory(card.matsBox))
+    card.craft = UI.CraftControl(card, true)
     card.tip = UI.Text(card, 11, C.muted)
     card.tip:SetPoint("RIGHT", card, "RIGHT", -12, 0)
 
@@ -108,6 +109,7 @@ local function layoutCard(card, snap)
             :format(PROF[prof].label, t and t[1] or "?", t and t[2] or "?"), C.warn)
         card.alertTab = "places"
         card.nextLabel:Hide() card.recipe:Hide() card.recipeName:SetText("") card.recipeSub:SetText("")
+        card.craft:Hide()
         card.chips:Release() card.tip:SetText("")
         card.empty:SetText(prof == "enchanting"
             and "Enchanting turns every green you find (and every green Tailoring makes) into dust instead of vendor trash."
@@ -166,6 +168,7 @@ local function layoutCard(card, snap)
         card.recipeName:ClearAllPoints()
         card.recipeName:SetPoint("TOPLEFT", 12, -y)
         card.chips:Release()
+        card.craft:Hide()
         card.tip:SetText("")
         card:SetHeight(y + 40)
         return
@@ -199,6 +202,13 @@ local function layoutCard(card, snap)
     card.chips:Release()
     local h = UI.LayoutMats(card.matsBox, card.chips, ns.Mats(step, crafts), width, 0, 0)
     y = y + h + 8
+
+    card.craft:ClearAllPoints()
+    card.craft:SetPoint("TOPLEFT", 12, -y)
+    card.craft:SetWidth(width)
+    card.craft:Update(prof, step, crafts, snap)
+    card.craft:Show()
+    y = y + card.craft:GetHeight() + 8
 
     card.tip:ClearAllPoints()
     card.tip:SetPoint("TOPLEFT", 12, -y)

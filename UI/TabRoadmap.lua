@@ -31,6 +31,8 @@ local function makeRow(parent)
     r.check:SetSize(16, 16)
     r.check:SetPoint("TOPRIGHT", -8, -8)
     r.check:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+    r.craft = UI.CraftControl(r, false)
+    r.craft:SetPoint("TOPRIGHT", -8, -8)
     return r
 end
 
@@ -107,6 +109,12 @@ local function fillRow(r, prof, step, snap, isAlt, width)
     local left = (status == "now") and (" |cff" .. ns.HEX.muted .. "(" .. crafts .. " left)|r") or ""
     r.title:SetText(("%s  |cff%s×%d|r%s"):format(name, ns.HEX.gold, step.count, left))
     local textW = r:GetWidth() - 74 - 28 - 8 - 32
+    if status == "now" then
+        textW = textW - r.craft:Update(prof, step, crafts, snap) + 16
+        r.craft:Show()
+    else
+        r.craft:Hide()
+    end
     r.title:SetWidth(textW)
     r.mats:SetWidth(textW)
     r.notes:SetWidth(textW)

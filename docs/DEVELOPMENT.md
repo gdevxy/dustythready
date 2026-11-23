@@ -30,6 +30,11 @@ Run through this before each release:
 3. Character without one of the professions: the card shows the "learn it" state, no errors.
 4. **Roadmap**: switch professions and routes; current step is highlighted and scrolled into view;
    Shopping list opens; with Auctionator, *Send to Auctionator* creates the list.
+   **Craft** (Today card and the highlighted Roadmap row): with the profession window closed, the
+   first click opens it (and crafts if it's ready, else "click Craft again"); crafts the remaining
+   count, shift-click crafts one. Without mats it says *Need mats*; at your cap *Train first*.
+   Enchants: the item chip shows a target; clicking it lists bracers/boots/... in bags and equipped;
+   *Enchant* applies it to the picked item.
 5. **Disenchant**: put greens in bags; rows appear with odds and value; hover the button and click
    to disenchant; *Keep* hides an item; *Cheat sheet* lists kept items and un-keeps them.
 6. Enter combat with the window open: you can still move and close it; the Disenchant list says

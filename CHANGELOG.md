@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.0
+
+- One-click crafting: a **Craft** button on the Today cards and on your current Roadmap step. It opens
+  the profession if needed and crafts what the step still needs (as far as your bags allow;
+  shift-click crafts one).
+- Enchants that go on an item let you pick the target first (bags or equipped, cheapest first), then
+  **Enchant** applies it.
+
 ## v1.0.0
 
 First version.
