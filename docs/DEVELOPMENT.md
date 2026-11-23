@@ -35,8 +35,9 @@ Run through this before each release:
    count, shift-click crafts one. Without mats it says *Need mats*; at your cap *Train first*.
    Enchants: the item chip shows a target; clicking it lists bracers/boots/... in bags and equipped;
    *Enchant* applies it to the picked item.
-   Shift-click the recipe icon (Today and Roadmap): the recipe link goes into chat (chat closed:
-   it opens with the link). Shift-click a mat chip still links the item.
+   Recipe icon (Today and Roadmap): shift-click links the crafted item (enchants: the recipe),
+   shift-right-click the pattern/formula, or the recipe if it's trainer-taught. With chat closed,
+   chat opens with the link. Shift-click a mat chip still links the item.
 5. **Disenchant**: put greens in bags; rows appear with odds and value; hover the button and click
    to disenchant; *Keep* hides an item; *Cheat sheet* lists kept items and un-keeps them.
 6. Enter combat with the window open: you can still move and close it; the Disenchant list says

@@ -210,6 +210,19 @@ function ns.CraftState(prof, step, crafts, snap)
     return st
 end
 
+-- Sets up a recipe icon (UI.ItemButton) for linking, and its tooltip hint.
+-- Shift-click: the crafted item (the recipe for enchants).
+-- Shift-right-click: the pattern/formula you buy, or the recipe if it's trainer-taught.
+function ns.SetupRecipeIcon(btn, prof, step)
+    btn.spellID = step.spell
+    btn.patternID = step.pattern or step.formula
+    if btn.patternID then ns.ItemInfo(btn.patternID) end -- warm the cache so the link is ready
+    local what = btn.patternID and (prof == "tailoring" and "pattern" or "formula") or "recipe"
+    local left = step.out and "the item" or "the recipe"
+    btn.extra = ns.Color("gold", ("Shift-click: link %s.\nShift-right-click: link the %s."):format(left, what))
+    if step.out then btn:SetItem(step.out) else btn:SetSpellIcon(step.spell) end
+end
+
 ---------------------------------------------------------------------------
 -- The click
 ---------------------------------------------------------------------------

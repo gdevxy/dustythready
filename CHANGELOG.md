@@ -7,7 +7,8 @@
   shift-click crafts one).
 - Enchants that go on an item let you pick the target first (bags or equipped, cheapest first), then
   **Enchant** applies it.
-- Shift-click a recipe icon on Today or the Roadmap to link the recipe in chat.
+- Recipe icons on Today and the Roadmap link to chat: shift-click for the crafted item,
+  shift-right-click for the pattern/formula (or the recipe when a trainer teaches it).
 - Fix: shift-click item links and *Write my ad* use the client's current chat API.
 
 ## v1.0.0

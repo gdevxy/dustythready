@@ -143,10 +143,20 @@ function UI.ItemButton(parent, size)
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    b:SetScript("OnClick", function(self)
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b:SetScript("OnClick", function(self, button)
         if IsModifiedClick("CHATLINK") then
-            -- Recipe buttons (Today / Roadmap) link the recipe; others link the item.
-            local link = self.spellID and ns.RecipeLink(self.spellID)
+            -- Recipe buttons (Today / Roadmap): shift-click links the crafted item,
+            -- shift-right-click the pattern/formula (or the recipe if it has none).
+            local link
+            if self.spellID then
+                if button == "RightButton" then
+                    local pinfo = self.patternID and ns.ItemInfo(self.patternID)
+                    link = (pinfo and pinfo.link) or ns.RecipeLink(self.spellID)
+                elseif not self.itemID then
+                    link = ns.RecipeLink(self.spellID)
+                end
+            end
             if not link then
                 local info = (not self.link and self.itemID) and ns.ItemInfo(self.itemID)
                 link = self.link or (info and info.link)

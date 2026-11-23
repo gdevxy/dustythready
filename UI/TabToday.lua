@@ -179,9 +179,7 @@ local function layoutCard(card, snap)
     card.recipe:Show()
     card.recipe:ClearAllPoints()
     card.recipe:SetPoint("TOPLEFT", 12, -y)
-    card.recipe.spellID = step.spell
-    card.recipe.extra = ns.Color("gold", "Shift-click: link the recipe in chat.")
-    if step.out then card.recipe:SetItem(step.out) else card.recipe:SetSpellIcon(step.spell) end
+    ns.SetupRecipeIcon(card.recipe, prof, step)
     card.recipeName:ClearAllPoints()
     card.recipeName:SetPoint("TOPLEFT", card.recipe, "TOPRIGHT", 8, -1)
     card.recipeName:SetPoint("RIGHT", card, "RIGHT", -12, 0)
