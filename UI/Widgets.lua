@@ -145,9 +145,13 @@ function UI.ItemButton(parent, size)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b:SetScript("OnClick", function(self)
         if IsModifiedClick("CHATLINK") then
-            local info = (not self.link and self.itemID) and ns.ItemInfo(self.itemID)
-            local link = self.link or (info and info.link)
-            if link and ChatEdit_InsertLink then ChatEdit_InsertLink(link) end
+            -- Recipe buttons (Today / Roadmap) link the recipe; others link the item.
+            local link = self.spellID and ns.RecipeLink(self.spellID)
+            if not link then
+                local info = (not self.link and self.itemID) and ns.ItemInfo(self.itemID)
+                link = self.link or (info and info.link)
+            end
+            ns.InsertLink(link)
         end
     end)
     function b:SetItem(id, link)

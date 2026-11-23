@@ -78,7 +78,7 @@ local function cards(snap)
             lead = "Your skill is the product. Customers bring the mats.", body = body,
             btn = #known > 0 and "Write my ad" or nil, click = function()
                 local ad = "/2 Enchanter LF work! " .. table.concat(known, ", ") .. ". Your mats, tips appreciated - whisper me!"
-                if ChatFrame_OpenChat then ChatFrame_OpenChat(ad) end
+                ns.OpenChat(ad)
             end })
     end
 

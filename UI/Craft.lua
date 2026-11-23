@@ -105,7 +105,7 @@ function UI.CraftControl(parent, wide)
 
     f.target = UI.ItemButton(f, H)
     f.target:SetScript("OnClick", function(self)
-        if IsModifiedClick("CHATLINK") and self.link and ChatEdit_InsertLink then ChatEdit_InsertLink(self.link) return end
+        if IsModifiedClick("CHATLINK") and self.link then ns.InsertLink(self.link) return end
         if f.state and f.state.targets and #f.state.targets > 0 then openPicker(self, f.step, f.state) end
     end)
     f.target.extra = ns.Color("gold", "Click to choose another item.")

@@ -17,6 +17,8 @@ local function makeRow(parent)
         if self.spellID and not self.itemID then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             pcall(GameTooltip.SetSpellByID, GameTooltip, self.spellID)
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(self.extra, 1, 1, 1, true)
             GameTooltip:Show()
         end
     end)
@@ -103,6 +105,7 @@ local function fillRow(r, prof, step, snap, isAlt, width)
     r:SetWidth(width - (isAlt and 40 or 0))
     r.range:SetText((isAlt and "|cff" .. ns.HEX.muted .. "or|r\n" or "") .. step.from .. "-" .. step.to)
     r.icon.spellID = step.spell
+    r.icon.extra = ns.Color("gold", "Shift-click: link the recipe in chat.")
     if step.out then r.icon:SetItem(step.out) else r.icon:SetSpellIcon(step.spell) end
     local name = step.out and ns.ItemText(step.out) or ns.SpellName(step.spell, step.name)
     local crafts = (status == "now") and ns.RemainingCrafts(step, skill) or step.count

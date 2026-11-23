@@ -75,6 +75,8 @@ local function makeProfCard(parent, prof)
         if self.spellID and not self.itemID then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             pcall(GameTooltip.SetSpellByID, GameTooltip, self.spellID)
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(self.extra, 1, 1, 1, true)
             GameTooltip:Show()
         end
     end)
@@ -178,6 +180,7 @@ local function layoutCard(card, snap)
     card.recipe:ClearAllPoints()
     card.recipe:SetPoint("TOPLEFT", 12, -y)
     card.recipe.spellID = step.spell
+    card.recipe.extra = ns.Color("gold", "Shift-click: link the recipe in chat.")
     if step.out then card.recipe:SetItem(step.out) else card.recipe:SetSpellIcon(step.spell) end
     card.recipeName:ClearAllPoints()
     card.recipeName:SetPoint("TOPLEFT", card.recipe, "TOPRIGHT", 8, -1)

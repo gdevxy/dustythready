@@ -185,6 +185,38 @@ function ns.Count(id)
     return (ok and clean(n)) or 0
 end
 
+---------------------------------------------------------------------------
+-- Chat: open the chat box / put a link in it (the API moved to ChatFrameUtil)
+---------------------------------------------------------------------------
+function ns.OpenChat(text)
+    local open = (ChatFrameUtil and ChatFrameUtil.OpenChat) or _G.ChatFrame_OpenChat
+    if open then pcall(open, text or "") end
+end
+
+-- Inserts the link into the open chat box, or opens chat with it.
+function ns.InsertLink(link)
+    if not link then return end
+    local insert = (ChatFrameUtil and ChatFrameUtil.InsertLink) or _G.ChatEdit_InsertLink
+    if insert then
+        local ok, done = pcall(insert, link)
+        if ok and done then return end
+    end
+    ns.OpenChat(link)
+end
+
+-- Clickable recipe link ("[Tailoring: Bolt of Linen Cloth]") for a recipe spell.
+function ns.RecipeLink(spellID)
+    if C_TradeSkillUI and C_TradeSkillUI.GetRecipeLink then
+        local ok, link = pcall(C_TradeSkillUI.GetRecipeLink, spellID)
+        if ok and clean(link) and link ~= "" then return link end
+    end
+    local getLink = (C_Spell and C_Spell.GetSpellLink) or _G.GetSpellLink
+    if getLink then
+        local ok, link = pcall(getLink, spellID)
+        if ok and clean(link) and link ~= "" then return link end
+    end
+end
+
 function ns.IconString(icon, size)
     size = size or 14
     return ("|T%s:%d:%d:0:0:64:64:5:59:5:59|t"):format(tostring(icon), size, size)
