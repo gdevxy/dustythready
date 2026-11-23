@@ -7,13 +7,13 @@ junction**, so edits in the repo are live after `/reload`:
 
 ```
 F:\Battle.net\World of Warcraft\_forever_\Interface\AddOns\DustyThready
-    -> D:\Development\wow\DustyThready
+    -> D:\Development\wow
 ```
 
 To recreate the junction (no admin rights needed), in PowerShell:
 
 ```powershell
-cmd /c mklink /J "F:\Battle.net\World of Warcraft\_forever_\Interface\AddOns\DustyThready" "D:\Development\wow\DustyThready"
+cmd /c mklink /J "F:\Battle.net\World of Warcraft\_forever_\Interface\AddOns\DustyThready" "D:\Development\wow"
 ```
 
 Useful in-game helpers (already installed): **BugGrabber + BugSack** to catch Lua errors,
@@ -40,7 +40,7 @@ Run through this before each release:
 
 ## Updating game data
 
-All game knowledge is in `DustyThready/Data/`. No logic changes needed for most updates.
+All game knowledge is in `Data/`. No logic changes needed for most updates.
 
 - **A leveling step changed**: edit `Data/Tailoring.lua` or `Data/Enchanting.lua`. Keep `from`/`to`
   contiguous, `count` = the guide's craft count, `mats` = per-craft amounts.
@@ -59,9 +59,12 @@ Source guides: wow-professions.com `/forever/enchanting-leveling-guide`,
 
 ## Releasing
 
-1. Update `CHANGELOG.md` and the `## Version:` line in `DustyThready.toc`.
-2. Commit, then tag: `git tag v1.0.1` and `git push --follow-tags`.
-3. The GitHub Action builds the zip and uploads it (see [PUBLISHING.md](PUBLISHING.md)).
+1. Add the new version's section at the top of `CHANGELOG.md` (it becomes the CurseForge changelog).
+2. Commit, then tag and push: `git tag v1.0.1` then `git push origin main --tags`.
+3. CurseForge packages and publishes the tag automatically; GitHub Actions attaches the same zip to a
+   GitHub Release (see [PUBLISHING.md](PUBLISHING.md)).
+
+The toc's `## Version:` is `@project-version@` and is filled in from the tag: never edit it by hand.
 
 If the game updates its Interface number, change `## Interface:` in the toc (find the current one in
 any recently updated Forever addon's `.toc`, or `/dump select(4, GetBuildInfo())` in game).

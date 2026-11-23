@@ -1,0 +1,15 @@
+# Read by CurseForge's packager (and the BigWigs packager in .github/workflows/release.yml).
+# The zip contains one "DustyThready" folder with the addon; everything below is left out.
+package-as: DustyThready
+
+ignore:
+  - docs
+  - tools
+  - dist
+  - README.md
+  - CLAUDE.md
+  - Media/icon-source.jpg
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown

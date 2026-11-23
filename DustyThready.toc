@@ -2,7 +2,7 @@
 ## Title: |cffb98cffDusty|r|cffe8c170Thready|r
 ## Notes: Tailoring + Enchanting, woven together. What to craft next, what it disenchants into, where to train, and how to turn it all into gold.
 ## Author: gdevxy
-## Version: 1.0.0
+## Version: @project-version@
 ## IconTexture: Interface\AddOns\DustyThready\Media\icon.tga
 ## Category: Professions
 ## SavedVariables: DustyThreadyDB

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="DustyThready/Media/icon-source.jpg" width="128" alt="DustyThready icon">
+  <img src="Media/icon-source.jpg" width="128" alt="DustyThready icon">
 </p>
 
 <h1 align="center">DustyThready</h1>
@@ -41,10 +41,12 @@ Also:
 
 ## Install
 
-1. Download the latest release (or clone this repository).
-2. Copy the `DustyThready` folder (the one that contains `DustyThready.toc`) to
-   `World of Warcraft\_forever_\Interface\AddOns\`.
-3. Restart the game or type `/reload`.
+Easiest: install it from **CurseForge** with the CurseForge app.
+
+By hand: download the zip from the latest
+[GitHub release](https://github.com/gdevxy/dustythready/releases), extract the `DustyThready` folder into
+`World of Warcraft\_forever_\Interface\AddOns\`, then restart the game or type `/reload`.
+(If you clone the repository instead, name the cloned folder `DustyThready`.)
 
 Optional: install **Auctionator** for AH prices, profit estimates and shopping lists.
 

@@ -1,5 +1,6 @@
-# Push a tag like v1.0.1 and this builds DustyThready-<version>.zip and attaches it to a GitHub Release.
-# CurseForge uploads are covered in docs/PUBLISHING.md.
+# Push a tag like v1.0.1 and this builds the zip (following .pkgmeta) and attaches it to a GitHub Release.
+# CurseForge builds and publishes its own copy from the same tag (project setting
+# "package any new tagged commits"), so no CurseForge token is needed here.
 name: Release
 
 on:
@@ -14,18 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Build zip
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          mkdir -p dist/stage
-          cp -r DustyThready dist/stage/
-          rm -f dist/stage/DustyThready/Media/icon-source.jpg
-          (cd dist/stage && zip -r "../DustyThready-${VERSION}.zip" DustyThready)
-          echo "ZIP=dist/DustyThready-${VERSION}.zip" >> "$GITHUB_ENV"
-
-      - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.ZIP }}
-          generate_release_notes: true
+          fetch-depth: 0
+
+      - uses: BigWigsMods/packager@v2
+        env:
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}  # optional: only used if set and the toc has X-Wago-ID

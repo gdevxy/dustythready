@@ -1,15 +1,17 @@
 # Architecture
 
 DustyThready is plain Lua + the WoW widget API, no XML. The only libraries are LibStub, CallbackHandler-1.0,
-LibDataBroker-1.1 and LibDBIcon-1.0 (in `DustyThready/Libs/`, for the minimap button only). Everything lives in one
+LibDataBroker-1.1 and LibDBIcon-1.0 (in `Libs/`, for the minimap button only). Everything lives in one
 namespace table `ns` (the second value of `...` in every file), also exposed as `_G.DustyThready`
 for debugging (`/dump DustyThready.Snapshot()`).
 
 ## File map (load order = `DustyThready.toc`)
 
 ```
-DustyThready/
-  DustyThready.toc      Interface 16001 (WoW Forever), saved variables, addon compartment hooks
+(repository root = the addon folder; .pkgmeta keeps docs/, tools/, README.md, CLAUDE.md out of the zip)
+  DustyThready.toc      Interface 16001 (WoW Forever), saved variables, addon compartment hooks.
+                        Version is @project-version@: the packager replaces it with the git tag.
+  Libs/                 LibStub, CallbackHandler-1.0, LibDataBroker-1.1, LibDBIcon-1.0
   Core.lua              namespace, colors, saved vars, event bus, safe API wrappers, items, money,
                         prices (Auctionator), profession skill reading, slash commands
   Data/
