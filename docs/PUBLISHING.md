@@ -26,6 +26,11 @@ and `CHANGELOG.md` becomes the release notes.
    `application/json`, *Just the push event*. (If CurseForge connects to GitHub for you, skip this.)
 5. Images tab: add screenshots of Today, Roadmap and Disenchant.
 
+The webhook is in place (added after v1.0.0). If CurseForge ever misses a tag, any new push to
+`main` makes it look again; as a last resort, re-push the tag
+(`git push origin :refs/tags/vX.Y.Z` then `git push origin refs/tags/vX.Y.Z`). That also re-runs
+the GitHub release workflow, which updates the existing GitHub Release.
+
 New projects go through moderation (hours to a couple of days) before they're public.
 
 ### Game version
