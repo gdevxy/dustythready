@@ -48,6 +48,8 @@ local DEFAULTS = {
 }
 local CHAR_DEFAULTS = {
     learned = {},           -- recipe spellID -> true (learned recipes, cached from the profession window)
+    scanned = {},           -- profession skill line -> true once its recipe list was read
+                            -- (from then on, "not in learned" means not learned)
 }
 
 local function fill(dst, src)
@@ -328,11 +330,30 @@ local function cacheLearned()
     local ok, ids = pcall(C_TradeSkillUI.GetAllRecipeIDs)
     if not ok or type(ids) ~= "table" then return end
     local changed = false
+    local learnedNow = {}
     for _, id in ipairs(ids) do
         local ok2, info = pcall(C_TradeSkillUI.GetRecipeInfo, id)
-        if ok2 and type(info) == "table" and clean(info.learned) and not ns.char.learned[id] then
-            ns.char.learned[id] = true
-            changed = true
+        if ok2 and type(info) == "table" and clean(info.learned) then
+            learnedNow[id] = true
+            if not ns.char.learned[id] then
+                ns.char.learned[id] = true
+                changed = true
+            end
+        end
+    end
+    -- Remember which profession's list we've read, so its unlearned recipes
+    -- show as "not learned" even after the window closes. The profession is
+    -- recognised by its recipes (a learned one from our roadmap), not by
+    -- GetBaseProfessionInfo, whose IDs can differ on this client.
+    for line, steps in pairs({ [ns.SKILL.TAILORING] = ns.TAILORING, [ns.SKILL.ENCHANTING] = ns.ENCHANTING }) do
+        if not ns.char.scanned[line] then
+            for _, s in ipairs(steps or {}) do
+                if learnedNow[s.spell] then
+                    ns.char.scanned[line] = true
+                    changed = true
+                    break
+                end
+            end
         end
     end
     if changed then ns:RequestRefresh() end

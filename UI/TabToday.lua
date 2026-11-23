@@ -162,6 +162,11 @@ local function layoutCard(card, snap)
         end
         alertLine(card, ("Buy %s%s"):format(ns.ItemName(missingItem), where ~= "" and (" from " .. where) or ""), C.warn)
         card.alertTab = "places"
+    elseif step and not (step.formula or step.pattern) and ns.RecipeLearnedState(prof, step.spell) == false then
+        local r, t = ns.RecipeTrainer(prof, step, snap.faction)
+        alertLine(card, ("Learn %s from %s trainer%s."):format(ns.SpellName(step.spell, step.name), ns.Article(r.name),
+            t and (": " .. ns.NpcLink(t[1]) .. ", " .. t[2]) or ""), C.warn)
+        card.alertTab = "places"
     end
 
     local y = 62 + (card.alertFrame:IsShown() and 42 or 0)

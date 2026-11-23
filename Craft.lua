@@ -3,9 +3,9 @@
 -- How it works on the WoW Forever client (modern C_TradeSkillUI API):
 --   * C_TradeSkillUI.CraftRecipe(spellID, n) crafts, but only while that
 --     profession is "open" (IsTradeSkillReady + GetBaseProfessionInfo).
---   * C_TradeSkillUI.OpenTradeSkill(skillLine) opens it. If it isn't ready in
---     the same click, the player clicks Craft once more (crafting needs a click,
---     so we never craft from an event).
+--   * C_TradeSkillUI.OpenTradeSkill(skillLine) opens it; the player then clicks
+--     Craft once more (crafting needs a click, so we never craft from an event,
+--     and crafting in the opening click lets the open cancel a multi-craft).
 --   * Enchants that go on an item use CraftEnchant(spellID, 1, nil, itemLocation)
 --     with the target the player picked; if that API is missing we cast the
 --     recipe and apply it to the target while the spell is waiting for one.
@@ -39,17 +39,32 @@ function ns.ProfessionOpen(prof)
     return true -- can't tell which profession is open: let CraftRecipe decide
 end
 
--- Only trust "not learned" when the profession is open (the recipe list is live).
+-- true = learned, false = not learned, nil = can't tell yet.
+-- "Not learned" is trusted when the profession is open (the recipe list is live)
+-- or when its recipe list was read before (every learned recipe got cached then).
 local function knownState(prof, spell)
     if ns.KnowsSpell(spell) then return true end
-    if not (ns.ProfessionOpen(prof) and T().GetRecipeInfo) then return nil end
-    local ok, info = pcall(T().GetRecipeInfo, spell)
-    if ok and type(info) == "table" then
-        local learned = ns.clean(info.learned)
-        if learned == nil then return nil end
-        return learned and true or false
+    if ns.ProfessionOpen(prof) and T().GetRecipeInfo then
+        local ok, info = pcall(T().GetRecipeInfo, spell)
+        if ok and type(info) == "table" then
+            local learned = ns.clean(info.learned)
+            if learned ~= nil then return learned and true or false end
+        elseif ok then
+            return false
+        end
     end
-    return false
+    if ns.char and ns.char.scanned and ns.char.scanned[LINE[prof]] then return false end
+    return nil
+end
+ns.RecipeLearnedState = knownState
+
+-- For a recipe a trainer teaches (no pattern/formula): the rank whose trainers
+-- teach it and the first trainer for your faction, e.g. Expert + Kitta Firewind.
+function ns.Article(word) return (word:match("^[AEIOUaeiou]") and "an " or "a ") .. word end
+
+function ns.RecipeTrainer(prof, step, faction)
+    local r = ns.RankForSkill(step.from)
+    return r, ns.TrainersFor(prof, r.key, faction)[1]
 end
 
 -- How many times the step can be crafted from what's in your bags (not the bank).
@@ -165,11 +180,25 @@ function ns.CraftState(prof, step, crafts, snap)
         st.tip = "You can craft again after combat."
         return st
     end
-    if knownState(prof, step.spell) == false then
+    local learned = knownState(prof, step.spell)
+    if learned == nil and not ns.ProfessionOpen(prof) then
+        -- Never seen this profession's recipe list: open it first so we know
+        -- whether this recipe is learned (the click only opens it, see DoCraft).
+        st.enabled = true
+        st.label = "Open"
+        st.tip = ("Opens %s to check you've learned this recipe. Then click again."):format(LABEL[prof])
+        return st
+    end
+    if learned == false then
         st.label = "Not learned"
         local item = step.formula or step.pattern
-        st.tip = item and ("Learn it first: " .. ns.ItemName(item) .. " (see the Where tab).")
-            or ("Learn it first from a " .. LABEL[prof] .. " trainer.")
+        if item then
+            st.tip = "Learn it first: " .. ns.ItemName(item) .. " (see the Where tab)."
+        else
+            local r, t = ns.RecipeTrainer(prof, step, snap and snap.faction)
+            st.tip = ("Learn it first from %s %s trainer%s."):format(ns.Article(r.name), LABEL[prof],
+                t and (": " .. t[1] .. ", " .. t[2]) or "")
+        end
         return st
     end
 
@@ -243,12 +272,13 @@ end
 function ns.DoCraft(prof, step, st, one)
     if not (st and st.enabled) then return end
     local t = T()
+    -- Never craft in the same click that opens (or switches) the profession:
+    -- the open finishes a moment later and closing/switching the trade skill
+    -- cancels the rest of a multi-craft, so only the first one would be made.
     if not ns.ProfessionOpen(prof) then
         pcall(t.OpenTradeSkill, LINE[prof])
-        if not ns.ProfessionOpen(prof) then
-            say(LABEL[prof] .. " is opening: click Craft again.")
-            return
-        end
+        say(LABEL[prof] .. " is open: click again.")
+        return
     end
 
     if st.slot then

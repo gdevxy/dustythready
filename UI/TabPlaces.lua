@@ -68,6 +68,13 @@ local function nextStops(snap)
                     end
                     table.insert(lines, ("%s: buy %s before %d%s"):format(label, ns.Color("warn", ns.ItemName(item)), s.from,
                         #where > 0 and (" - " .. table.concat(where, ", ")) or ""))
+                elseif not item and s.to > p.skill and s.from <= p.skill + 40
+                    and ns.RecipeLearnedState(prof, s.spell) == false then
+                    -- Trainer-taught recipe we know is missing
+                    local r, t = ns.RecipeTrainer(prof, s, snap.faction)
+                    table.insert(lines, ("%s: learn %s before %d from %s trainer%s"):format(label,
+                        ns.Color("warn", ns.SpellName(s.spell, s.name)), s.from, ns.Article(r.name),
+                        t and (" - " .. ns.NpcLink(t[1]) .. " (" .. t[2] .. ")") or ""))
                 end
             end
         end

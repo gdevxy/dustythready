@@ -78,6 +78,16 @@ local function notesFor(prof, step, snap)
             end
             table.insert(notes, ns.Color("warn", "Needs " .. ns.ItemName(item)) .. where)
         end
+    elseif not ns.KnowsSpell(step.spell) then
+        -- Trainer-taught recipe: say where, and say it loudly once we know it's missing.
+        local learned = ns.RecipeLearnedState(prof, step.spell)
+        local r, t = ns.RecipeTrainer(prof, step, snap.faction)
+        local who = t and (ns.Color("muted", " · ") .. ns.NpcLink(t[1], t[1], "muted") .. ns.Color("muted", ", " .. t[2])) or ""
+        if learned == false then
+            table.insert(notes, ns.Color("warn", "Not learned yet: buy it from " .. ns.Article(r.name) .. " trainer") .. who)
+        elseif learned == nil then
+            table.insert(notes, ns.Color("muted", "Taught by " .. r.name .. " trainers") .. who)
+        end
     end
     if prof == "tailoring" then
         local de = ns.StepDE(step)
