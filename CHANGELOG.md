@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.2.1
 
 - **Today shows what your crafts really gave**: *Last 10 crafts: +7 skill* next to the recipe, so
   you can check the "about N" estimate while you craft (this session, same recipe in a row).
