@@ -350,23 +350,28 @@ local function synergyLines(snap)
 
     -- Tailoring » Enchanting
     if t then
-        local step, idx, steps = ns.CurrentStep("tailoring", t.skill)
+        -- Same pick and crafts as the Tailoring card above, so the numbers match.
+        local choice = ns.ChooseStep("tailoring", t.skill)
+        local step = choice and choice.step
         local de = step and ns.StepDE(step)
         local feeder = step
         if step and not de then
-            for i = idx + 1, #steps do
-                local d = ns.StepDE(steps[i])
-                if d then de, feeder = d, steps[i] break end
+            for i = choice.idx + 1, #choice.steps do
+                local d = ns.StepDE(choice.steps[i])
+                if d then de, feeder = d, choice.steps[i] break end
             end
         end
         if de and feeder then
-            local uses = ns.EnchantStepsUsing(de.reagent)
-            local when = ""
-            if #uses > 0 then
-                local u = uses[1].step
-                when = " " .. L["» Enchanting eats it at %d-%d (%s)"]:format(u.from, u.to, ns.SpellName(u.spell, u.name))
+            -- The next Enchanting step that still uses it (not one you've passed).
+            local nextUse
+            for _, u in ipairs(ns.EnchantStepsUsing(de.reagent)) do
+                if not e or u.step.to > e.skill then nextUse = u.step break end
             end
-            local crafts = (feeder == step) and ns.RemainingCrafts(feeder, t.skill) or feeder.count
+            local when = ""
+            if nextUse then
+                when = " " .. L["» Enchanting eats it at %d-%d (%s)"]:format(nextUse.from, nextUse.to, ns.SpellName(nextUse.spell, nextUse.name))
+            end
+            local crafts = (feeder == step) and (choice.crafts or ns.RemainingCrafts(feeder, t.skill)) or feeder.count
             local count = ns.Color("gold", crafts)
             local gets = ns.Color("violet", math.floor(de.perCraft * crafts + 0.5) .. " " .. ns.ItemName(de.reagent))
             if feeder == step then
@@ -379,7 +384,7 @@ local function synergyLines(snap)
             if e then
                 local need = ns.RemainingNeed("enchanting", e.skill, de.reagent)
                 local have = ns.Count(de.reagent)
-                if need > 0 and e.skill < (uses[1] and uses[1].step.from or 0) then
+                if need > 0 and nextUse and e.skill < nextUse.from then
                     table.insert(lines, L["Bank it! You'll need %d %s later (you have %d). Don't sell it now."]
                         :format(need, ns.ItemName(de.reagent), have))
                 end
@@ -396,7 +401,16 @@ local function synergyLines(snap)
             local need = 0
             for _, m in ipairs(step.mats) do if m[1] == key then need = m[2] * crafts end end
             local have = ns.Count(key)
-            if have >= need then
+            if have >= need and e.skill >= e.max then
+                -- At the trainer cap: the dust is ready, but crafting gives no skill yet.
+                local train = ns.TrainingNeed("enchanting", snap)
+                if train and train.rank and train.ready then
+                    table.insert(lines, L["You have all the %s for your next Enchanting step. Train %s first, then craft."]
+                        :format(ns.ItemName(key), L[train.rank.name]))
+                else
+                    table.insert(lines, L["You have all the %s for your next Enchanting step."]:format(ns.ItemName(key)))
+                end
+            elseif have >= need then
                 table.insert(lines, ns.Color("good", "|TInterface\\RaidFrame\\ReadyCheck-Ready:12|t ") .. L["You have all the %s for your current Enchanting step. Go craft!"]:format(ns.ItemName(key)))
             else
                 local short = need - have

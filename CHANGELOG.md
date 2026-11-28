@@ -6,6 +6,9 @@
   you can check the "about N" estimate while you craft (this session, same recipe in a row).
 - Recipe colours come only from the Forever data in the addon. The live reading from the
   profession window is gone: the Forever client never reports recipe colours.
+- Fix: the *Thread & Dust* card named an Enchanting step you had already passed ("eats it at
+  200-201" at skill 225), counted different crafts than the Tailoring card, and said *Go craft!*
+  while Enchanting was at its trainer cap (now: *Train Artisan first, then craft*).
 
 ## v1.2.0
 
