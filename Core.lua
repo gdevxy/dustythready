@@ -245,26 +245,59 @@ local function factionLetter()
     return f == "Horde" and "H" or (f == "Alliance" and "A" or "N")
 end
 
-local function realmName()
-    if GetNormalizedRealmName then
-        local ok, r = pcall(GetNormalizedRealmName)
-        if ok and type(clean(r)) == "string" and r ~= "" then return r end
+-- WoW Forever has no realms, only rulesets, and characters have a first and a
+-- last name: GetNormalizedRealmName / GetRealmName give "", GetRealmID gives
+-- nothing, and UnitFullName's second value is the last name ("Frieza", "Cold").
+-- Characters are keyed "First Last-<group>": the group is the realm name on a
+-- client that has one, else the ruleset ("PvE", "PvP", "RP", "RPPvP", "HC",
+-- read like Auctionator does). Only the same group and faction count as alts.
+local function rulesetName()
+    local rules, active = Enum and Enum.GameRule, C_GameRules and C_GameRules.IsGameRuleActive
+    if type(rules) ~= "table" or type(active) ~= "function" then return "" end
+    local function on(name)
+        local rule = rules[name]
+        if rule == nil then return false end
+        local ok, v = pcall(active, rule)
+        return ok and clean(v) == true
     end
-    if GetRealmName then
-        local ok, r = pcall(GetRealmName)
-        if ok and type(clean(r)) == "string" and r ~= "" then return (r:gsub("[%s%-]", "")) end
-    end
+    if on("HardcoreRuleset") then return "HC" end
+    local pvp, rp = on("PvPRuleset"), on("RPRuleset")
+    if pvp and rp then return "RPPvP" end
+    if pvp then return "PvP" end
+    if rp then return "RP" end
+    return "PvE"
 end
 
-local me -- { key = "Name-Realm", name, realm } once the game knows them
+-- Returns the group, and true when the client has no realm name (Forever).
+local function realmName()
+    for _, f in ipairs({ GetNormalizedRealmName or false, GetRealmName or false }) do
+        if f then
+            local ok, r = pcall(f)
+            r = ok and clean(r) or nil
+            if type(r) == "string" and r ~= "" then return (r:gsub("[%s%-]", "")), false end
+        end
+    end
+    return rulesetName(), true
+end
+
+-- Last name on Forever (UnitFullName's second value when the client has no realm name).
+local function lastName()
+    if not UnitFullName then return nil end
+    local ok, _, last = pcall(UnitFullName, "player")
+    last = ok and clean(last) or nil
+    if type(last) == "string" and last ~= "" then return last end
+    return nil
+end
+
+local me -- { key = "First Last-Group", name, last, realm } once the game knows them
 local function whoAmI()
     if me then return me end
     local ok, name = pcall(UnitName, "player")
     name = ok and clean(name) or nil
     if type(name) ~= "string" or name == "" or name == _G.UNKNOWNOBJECT then return nil end
-    local realm = realmName()
-    if not realm then return nil end
-    me = { key = name .. "-" .. realm, name = name, realm = realm }
+    local realm, noRealms = realmName()
+    local last = noRealms and lastName() or nil
+    me = { key = name .. (last and (" " .. last) or "") .. "-" .. realm, name = name, last = last, realm = realm }
     return me
 end
 
@@ -285,7 +318,7 @@ local function myRecord()
     local rec = ns.db.chars[id.key]
     if type(rec) ~= "table" then rec = {} ns.db.chars[id.key] = rec end
     if type(rec.items) ~= "table" then rec.items = {} end
-    rec.name, rec.realm, rec.faction = id.name, id.realm, factionLetter()
+    rec.name, rec.last, rec.realm, rec.faction = id.name, id.last, id.realm, factionLetter()
     local okC, _, class = pcall(UnitClass, "player")
     if okC and clean(class) then rec.class = class end
     local okL, level = pcall(UnitLevel, "player")
@@ -511,7 +544,8 @@ function ns.ForgetChar(who)
     local n = 0
     for key, rec in pairs(chars) do
         local name = type(rec) == "table" and type(rec.name) == "string" and rec.name:lower()
-        if key:lower() == who or name == who then
+        local full = name and type(rec.last) == "string" and (name .. " " .. rec.last:lower())
+        if key:lower() == who or name == who or full == who then
             chars[key] = nil
             n = n + 1
         end
@@ -527,7 +561,8 @@ ns:On("BANKFRAME_CLOSED", function() scanNow("bags") bankOpen = false end)
 ns:On("MAIL_SHOW", function() mailOpen = true end)
 ns:On("MAIL_INBOX_UPDATE", function() requestScan("mail") end)
 ns:On("MAIL_CLOSED", function() mailOpen = false end) -- the inbox may read as empty once closed: no scan
-ns:On("PLAYER_LOGOUT", function() scanNow("bags") end)
+-- No scan on PLAYER_LOGOUT: the bags already read as empty then, which wiped
+-- every "bags" count (bag events keep the record current anyway).
 -- Modern clients also announce the bank and mailbox this way.
 local PIT = Enum and Enum.PlayerInteractionType
 ns:On("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", function(kind)
@@ -736,6 +771,9 @@ ns:On("ADDON_LOADED", function(name)
     DustyThreadyCharDB = fill(DustyThreadyCharDB or {}, CHAR_DEFAULTS)
     ns.db, ns.char = DustyThreadyDB, DustyThreadyCharDB
     ns.char.difficulty = nil -- v1.2.0 live recipe colours: Forever never reports them
+    -- Character records before v1.2.2 were never saved right (empty realm, empty
+    -- bags at logout, surname as realm): start over, each character refills on login.
+    if (ns.db.charsVersion or 0) < 4 then ns.db.chars = {} ns.db.charsVersion = 4 end
     -- "/dusty locale deDE": a language other than the client's (nil = the client's).
     if type(ns.db.locale) == "string" then ns.SetLocale(ns.db.locale) end
     ns:Fire("DT_READY")

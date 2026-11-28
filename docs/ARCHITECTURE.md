@@ -161,6 +161,12 @@ first view (`build(page)`), then `refresh(page, snap)` re-lays them out. Rows co
   `GET_ITEM_INFO_RECEIVED` event triggers a refresh. Use `ns.ItemName(id)` for display: it falls
   back to `ns.ITEM_NAMES`.
 
+- **No realms, two-part names**: Forever has rulesets, not realms. `GetRealmName()` and
+  `GetNormalizedRealmName()` return `""`; `UnitFullName("player")` returns the first and the **last
+  name** (`"Frieza", "Cold"`). The WTF folders are `WTF\Account\<ACCOUNT>\93\Frieza-Cold`.
+  `GetRealmID()` gives nothing either. The ruleset comes from
+  `C_GameRules.IsGameRuleActive(Enum.GameRule.PvPRuleset)` (also `RPRuleset`, `HardcoreRuleset`).
+  At `PLAYER_LOGOUT` the bags already read as empty: never save counts then.
 - **Minimap button**: always go through LibDBIcon. Minimap-button managers (e.g. Leatrix Plus)
   refuse custom buttons and show *This is a custom button* in the tooltip.
 
@@ -195,9 +201,13 @@ first view (`build(page)`), then `refresh(page, snap)` re-lays them out. Rows co
 - `DustyThreadyDB` (account): minimap, tooltip toggle, window position, last tab, enchant route,
   roadmap profession, `ignoredDE` (items the player chose to keep), `zoneHints` (false = no cloth
   farm hints; nil/true = on), `locale` (forced language, nil = the client's), and:
-  - `chars["Name-Realm"]` = `{ name, realm, faction, class, level, updated, items = { [itemID] =
+  - `chars["First Last-Group"]` = `{ name, last, realm, faction, class, level, updated, items = { [itemID] =
     { bags, bank, mail } } }`: what each character holds of the items DustyThready tracks
-    (filled by each character's bag / bank / mailbox scans; read by `ns.CountAlts`).
+    (filled by each character's bag / bank / mailbox scans; read by `ns.CountAlts`). Forever has
+    no realms (only rulesets) and characters have a last name: the key is `"Frieza Cold-PvE"`. The
+    group is the ruleset (`PvE`, `PvP`, `RP`, `RPPvP`, `HC`, read from `C_GameRules` like
+    Auctionator does), or the realm name on clients that have one. No scan at logout: bags read
+    empty then. `charsVersion` = 4 (older records were dropped).
   - `mooncloth["Name-Realm"]` = `{ readyAt = epoch seconds (0 = ready), class }`: Mooncloth
     cooldown per tailor (`Endgame.lua`).
 - `DustyThreadyCharDB` (character): `learned` recipe cache and `scanned` (profession lines whose

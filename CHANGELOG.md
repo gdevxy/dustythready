@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Fix: material chips never showed *(+N alts)* or *(+N mail)*. WoW Forever has no realm name (only
+  rulesets, and characters have a last name), so no character was saved, and a scan at logout
+  (when bags already read as empty) wiped the bag counts. Alts now count when they share your
+  ruleset (PvE, PvP, RP, Hardcore) and faction. Log in once on each alt (and open its bank) to fill
+  it in again.
+
 ## v1.2.1
 
 - **Today shows what your crafts really gave**: *Last 10 crafts: +7 skill* next to the recipe, so
