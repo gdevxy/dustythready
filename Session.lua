@@ -147,6 +147,68 @@ ns:On("UNIT_SPELLCAST_INTERRUPTED", cancel)
 ns:On("UNIT_SPELLCAST_FAILED", cancel)
 
 ---------------------------------------------------------------------------
+-- Crafts of path recipes: the current run per profession (same recipe in a
+-- row) and the skill it started at, so Today can say "Last 10 crafts: +7 skill".
+-- The skill is read when the run's first cast starts, before its skill-up.
+---------------------------------------------------------------------------
+local runs = {}        -- profession key -> { spell, crafts, from }
+local casting = {}     -- cast GUID -> true for path-recipe casts in progress
+
+local function profSkill(prof)
+    local p = ns.ProfessionSkill(prof:upper())
+    return p and p.skill or nil
+end
+
+ns:On("UNIT_SPELLCAST_START", function(unit, guid, spellID)
+    if unit ~= "player" then return end
+    local spell = ns.clean(spellID)
+    local prof = ns.PathProfession and ns.PathProfession(spell)
+    if not prof then return end
+    local g = ns.clean(guid)
+    if g then casting[g] = true end
+    local r = runs[prof]
+    if not (r and r.spell == spell) then
+        local skill = profSkill(prof)
+        runs[prof] = skill and { spell = spell, crafts = 0, from = skill } or nil
+    end
+end)
+
+ns:On("UNIT_SPELLCAST_SUCCEEDED", function(unit, guid, spellID)
+    if unit ~= "player" then return end
+    local spell = ns.clean(spellID)
+    local prof = ns.PathProfession and ns.PathProfession(spell)
+    if not prof then return end
+    local g = ns.clean(guid)
+    -- Instant casts send no START: open the run here (the skill-up comes after this event).
+    if not (g and casting[g]) and not (runs[prof] and runs[prof].spell == spell) then
+        local skill = profSkill(prof)
+        runs[prof] = skill and { spell = spell, crafts = 0, from = skill } or nil
+    end
+    if g then casting[g] = nil end
+    local r = runs[prof]
+    if r and r.spell == spell then
+        r.crafts = r.crafts + 1
+        ns:RequestRefresh()
+    end
+end)
+
+local function endCast(unit, guid)
+    if unit ~= "player" then return end
+    local g = ns.clean(guid)
+    if g then casting[g] = nil end
+end
+ns:On("UNIT_SPELLCAST_INTERRUPTED", endCast)
+ns:On("UNIT_SPELLCAST_FAILED", endCast)
+
+-- The run of this recipe this session: crafts, skill gained; nil before the first craft.
+function Session.Run(prof, spell)
+    local r = runs[prof]
+    if not (r and r.spell == spell and r.crafts > 0) then return nil end
+    local now = profSkill(prof) or r.from
+    return r.crafts, math.max(0, now - r.from)
+end
+
+---------------------------------------------------------------------------
 -- The footer line
 ---------------------------------------------------------------------------
 function Session.Gains()

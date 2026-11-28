@@ -735,6 +735,7 @@ ns:On("ADDON_LOADED", function(name)
     DustyThreadyDB = fill(DustyThreadyDB or {}, DEFAULTS)
     DustyThreadyCharDB = fill(DustyThreadyCharDB or {}, CHAR_DEFAULTS)
     ns.db, ns.char = DustyThreadyDB, DustyThreadyCharDB
+    ns.char.difficulty = nil -- v1.2.0 live recipe colours: Forever never reports them
     -- "/dusty locale deDE": a language other than the client's (nil = the client's).
     if type(ns.db.locale) == "string" then ns.SetLocale(ns.db.locale) end
     ns:Fire("DT_READY")

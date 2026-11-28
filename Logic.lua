@@ -316,18 +316,11 @@ end
 ---------------------------------------------------------------------------
 -- Recipe colour (orange / yellow / green / grey)
 --
--- The guide's counts are static. While a profession window is open we read
--- the client's own difficulty for every recipe of our paths and cache it per
--- character (DustyThreadyCharDB.difficulty[spell]):
---   { c = "yellow", at = 152,      -- colour seen, and the skill it was read at
---     y = 150, g = 170, x = 190 }  -- lowest skill seen yellow-or-worse,
---                                  -- green-or-worse and grey (learned thresholds)
--- Colours only get worse as skill rises, so the thresholds tell the colour
--- later without the window open. Without data we show nothing.
+-- WoW Forever's client reports no recipe difficulty, so colours come only
+-- from Data/RecipeSkill.lua (Forever values: { orange, yellow, green, grey },
+-- 0 = unknown). Colours only get worse as skill rises.
 ---------------------------------------------------------------------------
 local RANK = { orange = 1, yellow = 2, green = 3, grey = 4 }
-local TH = { [2] = "y", [3] = "g", [4] = "x" }
-local BY_RANK = { "orange", "yellow", "green", "grey" }
 ns.DIFF_RANK = RANK
 -- The colours the game's profession window uses.
 ns.DIFF_HEX = { orange = "ff8040", yellow = "ffff00", green = "40bf40", grey = "808080" }
@@ -337,155 +330,31 @@ function ns.DiffText(color, text)
     return "|cff" .. ns.DIFF_HEX[color] .. (text or L[color]) .. "|r"
 end
 
-local pathSpells -- spell -> "tailoring" | "enchanting"
-local function buildPathSpells()
-    pathSpells = {}
-    for prof, list in pairs({ tailoring = ns.TAILORING, enchanting = ns.ENCHANTING }) do
-        for _, s in ipairs(list or {}) do
-            pathSpells[s.spell] = prof
-            if s.alts then
-                for _, a in ipairs(s.alts) do pathSpells[a.spell] = prof end
-            end
-        end
-    end
-end
-
--- Colour key from a C_TradeSkillUI.GetRecipeInfo table, or nil.
--- Modern clients: relativeDifficulty (Enum.TradeskillRelativeDifficulty,
--- Optimal 0 / Medium 1 / Easy 2 / Trivial 3); older ones: difficulty strings.
-local NUM_COLOR = { [0] = "orange", [1] = "yellow", [2] = "green", [3] = "grey" }
-local NAME_COLOR = { optimal = "orange", medium = "yellow", easy = "green", trivial = "grey" }
-local function colorOf(info)
-    local rd = ns.clean(info.relativeDifficulty)
-    if type(rd) == "number" then
-        local E = Enum and Enum.TradeskillRelativeDifficulty
-        if type(E) == "table" then
-            if E.Optimal ~= nil and rd == E.Optimal then return "orange" end
-            if E.Medium ~= nil and rd == E.Medium then return "yellow" end
-            if E.Easy ~= nil and rd == E.Easy then return "green" end
-            if E.Trivial ~= nil and rd == E.Trivial then return "grey" end
-        end
-        return NUM_COLOR[rd]
-    end
-    local d = ns.clean(info.difficulty)
-    if type(d) == "string" then return NAME_COLOR[d] end
-    if type(d) == "number" then return NUM_COLOR[d] end
-    return nil
-end
-
-local function record(db, spell, c, skill)
-    local e = db[spell]
-    if type(e) ~= "table" then e = {} db[spell] = e end
-    local changed = (e.c ~= c) or (e.at ~= skill)
-    e.c, e.at = c, skill
-    local r = RANK[c]
-    for k = 2, r do
-        local f = TH[k]
-        if not e[f] or skill < e[f] then e[f] = skill changed = true end
-    end
-    -- A better colour at or above a stored threshold: that threshold is stale
-    -- (profession dropped and relearned...): forget it.
-    for k = r + 1, 4 do
-        local f = TH[k]
-        if e[f] and e[f] <= skill then e[f] = nil changed = true end
-    end
-    return changed
-end
-
-local function scanColors()
-    local t = C_TradeSkillUI
-    if not (ns.char and t and t.GetAllRecipeIDs and t.GetRecipeInfo) then return end
-    if t.IsTradeSkillReady then
-        local okR, ready = pcall(t.IsTradeSkillReady)
-        if okR and not ready then return end
-    end
-    local ok, ids = pcall(t.GetAllRecipeIDs)
-    if not ok or type(ids) ~= "table" then return end
-    if not pathSpells then buildPathSpells() end
-    if type(ns.char.difficulty) ~= "table" then ns.char.difficulty = {} end
-    local db = ns.char.difficulty
-    local skills, changed = {}, false
-    for _, id in ipairs(ids) do
-        local prof = pathSpells[id]
-        if prof then
-            local ok2, info = pcall(t.GetRecipeInfo, id)
-            if ok2 and type(info) == "table" and ns.clean(info.learned) then
-                local c = colorOf(info)
-                if c then
-                    if skills[prof] == nil then
-                        local p = ns.ProfessionSkill(prof == "tailoring" and "TAILORING" or "ENCHANTING")
-                        skills[prof] = (p and p.skill) or false
-                    end
-                    if skills[prof] and record(db, id, c, skills[prof]) then changed = true end
+-- Which path uses a recipe spell: "tailoring" | "enchanting" | nil (alternatives included).
+local pathSpells
+function ns.PathProfession(spell)
+    if not pathSpells then
+        pathSpells = {}
+        for prof, list in pairs({ tailoring = ns.TAILORING, enchanting = ns.ENCHANTING }) do
+            for _, s in ipairs(list or {}) do
+                pathSpells[s.spell] = prof
+                if s.alts then
+                    for _, a in ipairs(s.alts) do pathSpells[a.spell] = prof end
                 end
             end
         end
     end
-    if changed then ns:RequestRefresh() end
+    return spell and pathSpells[spell] or nil
 end
 
-local scanPending = false
-local function requestScan(delay)
-    if scanPending then return end
-    scanPending = true
-    C_Timer.After(delay or 0.3, function()
-        scanPending = false
-        local ok, err = pcall(scanColors)
-        if not ok then geterrorhandler()(err) end
-    end)
-end
-ns:On("TRADE_SKILL_SHOW", function() requestScan(0.6) end)
-ns:On("TRADE_SKILL_LIST_UPDATE", function() requestScan(0.3) end)
-ns:On("SKILL_LINES_CHANGED", function() requestScan(0.5) end)
-
--- Colour from the static data (Data/RecipeSkill.lua: { orange, yellow, green, grey },
--- 0 = unknown).
-local function staticColor(spell, skill)
+-- Colour of a recipe at a skill level: "orange" | "yellow" | "green" | "grey" | nil.
+function ns.RecipeColor(spell, skill)
     local t = ns.RECIPE_SKILL and spell and ns.RECIPE_SKILL[spell]
     if not (t and skill and t[4] and t[4] > 0) then return nil end
     if skill >= t[4] then return "grey" end
     if t[3] > 0 and skill >= t[3] then return "green" end
     if t[2] > 0 and skill >= t[2] then return "yellow" end
     if t[2] > 0 then return "orange" end
-    return nil
-end
-ns.StaticRecipeColor = staticColor
-
-local liveColor
--- Colour of a recipe at a skill level: "orange" | "yellow" | "green" | "grey" | nil,
--- and true when it was read live at exactly this skill. A live reading from the
--- profession window wins; otherwise the static thresholds.
-function ns.RecipeColor(spell, skill)
-    local c, exact = liveColor(spell, skill)
-    if c then return c, exact end
-    return staticColor(spell, skill)
-end
-
-liveColor = function(spell, skill)
-    local db = ns.char and ns.char.difficulty
-    local e = db and spell and db[spell]
-    if not (type(e) == "table" and e.c and RANK[e.c] and e.at and skill) then return nil end
-    if e.at == skill then return e.c, true end
-    local cr = RANK[e.c]
-    -- Learned thresholds: past one, the colour is at least that bad.
-    for k = 4, 2, -1 do
-        local th = e[TH[k]]
-        if th and skill >= th then
-            if skill < e.at then
-                -- between threshold k and the reading's colour
-                return (cr == k) and BY_RANK[k] or nil
-            end
-            -- Above the reading it may have got worse since: trust it for a few points (grey stays grey).
-            if k == 4 or skill - e.at <= 5 then return BY_RANK[max(k, cr)] end
-            return nil
-        end
-    end
-    -- Below every known threshold.
-    if skill < e.at then
-        return (cr == 1) and "orange" or nil
-    end
-    -- (Here the reading was orange.) A few points above it: still a good guess.
-    if skill - e.at <= 3 then return e.c end
     return nil
 end
 
@@ -495,36 +364,18 @@ local YELLOW_PER_POINT, GREEN_PER_POINT = 1.6, 4
 function ns.EstimateCrafts(prof, step, skill)
     local base = ns.RemainingCrafts(step, skill or 0)
     local color = skill and ns.RecipeColor(step.spell, skill) or nil
-    -- With static thresholds, add up point by point: a recipe that is orange
-    -- now may turn yellow and green before the step ends.
-    local t = ns.RECIPE_SKILL and ns.RECIPE_SKILL[step.spell]
-    if t and skill and color ~= "grey" then
+    -- Add up point by point: a recipe that is orange now may turn yellow and
+    -- green before the step ends.
+    if color and color ~= "grey" then
         local est = 0
         for p = max(skill, step.from), step.to - 1 do
-            local c = staticColor(step.spell, p)
+            local c = ns.RecipeColor(step.spell, p)
             if c == "orange" then est = est + 1
             elseif c == "yellow" then est = est + YELLOW_PER_POINT
             elseif c == "green" then est = est + GREEN_PER_POINT
             else break end -- grey: no more skill-ups from this recipe
         end
         est = ceil(est)
-        if est > base then return est, true, color end
-        return base, false, color
-    end
-    if color == "yellow" or color == "green" then
-        local from = max(skill, step.from)
-        local points = max(0, step.to - from)
-        local yellowPts, greenPts = points, 0
-        if color == "green" then
-            yellowPts, greenPts = 0, points
-        else
-            local e = ns.char and ns.char.difficulty and ns.char.difficulty[step.spell]
-            local gAt = type(e) == "table" and e.g or nil
-            if gAt and gAt > from and gAt < step.to then
-                yellowPts, greenPts = gAt - from, step.to - gAt
-            end
-        end
-        local est = ceil(yellowPts * YELLOW_PER_POINT + greenPts * GREEN_PER_POINT)
         if est > base then return est, true, color end
     end
     return base, false, color

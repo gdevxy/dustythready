@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Today shows what your crafts really gave**: *Last 10 crafts: +7 skill* next to the recipe, so
+  you can check the "about N" estimate while you craft (this session, same recipe in a row).
+- Recipe colours come only from the Forever data in the addon. The live reading from the
+  profession window is gone: the Forever client never reports recipe colours.
+
 ## v1.2.0
 
 - **Recipe colours.** Today and the Roadmap show whether your recipe is orange, yellow, green or

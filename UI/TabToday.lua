@@ -281,6 +281,13 @@ local function layoutCard(card, snap)
     if de then
         sub = sub .. "  ·  " .. ns.Color("violet", L["disenchants » ~%d %s"]:format(math.floor(de.perCraft * crafts + 0.5), ns.ItemName(de.reagent)))
     end
+    -- What the last crafts of this recipe really gave, so the "about N" can be checked.
+    local ran, gain = ns.Session.Run(prof, pick.spell)
+    if ran then
+        local txt = (ran == 1 and L["Last craft: +%d skill"] or L["Last %d crafts: +%d skill"])
+        txt = (ran == 1) and txt:format(gain) or txt:format(ran, gain)
+        sub = sub .. "  ·  " .. ns.Color(gain > 0 and "good" or "warn", txt)
+    end
     card.recipeSub:SetText(sub)
     card.recipeName:SetWidth(width - 38)
     card.recipeSub:SetWidth(width - 38)

@@ -45,7 +45,8 @@ for debugging (`/dump DustyThready.Snapshot()`).
                         "Post my menu" chat line, CraftRecipe + ClickTargetTradeButton(7)
   Endgame.lua           ns.Endgame: Mooncloth cooldown per tailor (account-wide), login / ready alerts
   Session.lua           ns.Session: "this session" skill-ups, reagents gained, disenchant value
-                        (footer line)
+                        (footer line); crafts of the same path recipe in a row and the skill they
+                        gave (ns.Session.Run: "Last N crafts: +M skill" on Today)
   UI/
     Widgets.lua         ns.UI: Panel, Text, Button, Pill, ProgressBar, ItemButton, Scroll, Pool,
                         Segmented, LayoutMats (have/need chips, + mailbox/alts counts)
@@ -104,8 +105,9 @@ A **step** (in `ns.TAILORING` / `ns.ENCHANTING`):
 | `ns.RemainingNeed(prof, skill, id)` | how many of an item the rest of the path still uses |
 | `ns.ScanBags()` | disenchantable items in bags with predictions |
 | `ns.CraftProfit(craft)` | `{ cost, sale, profit }` from Auctionator prices |
-| `ns.RecipeColor(spell, skill)` | `"orange"/"yellow"/"green"/"grey"` or nil, from the colours read while a profession window was open (`DustyThreadyCharDB.difficulty`); second value true when read at exactly this skill |
-| `ns.EstimateCrafts(prof, step, skill)` | crafts left, made honest by the colour (yellow ~1.6 and green ~4 crafts per point): `n, about, color` |
+| `ns.RecipeColor(spell, skill)` | `"orange"/"yellow"/"green"/"grey"` or nil, from `Data/RecipeSkill.lua` only (the Forever client reports no recipe difficulty) |
+| `ns.PathProfession(spell)` | `"tailoring"` / `"enchanting"` when a recipe is on a path (alternatives included), else nil |
+| `ns.EstimateCrafts(prof, step, skill)` | crafts left, counted point by point through the static colours (yellow ~1.6 and green ~4 crafts per point): `n, about, color` |
 | `ns.ChooseStep(prof, skill)` | what to craft now: the guide's step or an alternative you know that is better (`reason` = `"learned"`, `"color"`, `"bags"`, `"cost"`), with `crafts`, `about`, `color`, `grey` |
 | `ns.CapNeeds(prof, snap)` | everything the remaining steps up to the trainer cap use: `totals[id], order, cap, produced[id]` (what your own steps make, e.g. bolts) |
 | `ns.CapBudget(prof, snap)` | nil without Auctionator, else `{ cap, cost, unknown, top, money, short, done }` for the missing AH mats; `ns.BudgetText(b, compact)` words it |
@@ -199,6 +201,5 @@ first view (`build(page)`), then `refresh(page, snap)` re-lays them out. Rows co
   - `mooncloth["Name-Realm"]` = `{ readyAt = epoch seconds (0 = ready), class }`: Mooncloth
     cooldown per tailor (`Endgame.lua`).
 - `DustyThreadyCharDB` (character): `learned` recipe cache and `scanned` (profession lines whose
-  recipe list was read), filled while a profession window is open; `difficulty[spell]` =
-  `{ c = colour, at = skill, y, g, x = lowest skill seen yellow / green / grey }` for
-  `ns.RecipeColor`.
+  recipe list was read), filled while a profession window is open. (v1.2.0 also stored a
+  `difficulty` table; Forever never filled it, and it is cleared at load.)

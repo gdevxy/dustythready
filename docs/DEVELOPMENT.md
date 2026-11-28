@@ -40,6 +40,8 @@ Run through this before each release:
    chat opens with the link. Shift-click a mat chip still links the item.
    Recipe colour shows next to the skill on Today ("yellow", "about N" crafts) and on the current
    Roadmap row; it comes from `Data/RecipeSkill.lua` (the client reports none).
+   Craft a few of the Today recipe: its line shows *Last N crafts: +M skill* (counts each
+   successful cast, also from the batch Craft button; +0 in warn colour once it stops paying).
 5. **Disenchant**: put greens in bags; rows are grouped by advice (*Disenchant: your Enchanting
    needs these* / *Disenchant and sell* / *Sell on the AH* / *Sell to a vendor*), each with a one-line
    reason; the summary lists the counts. The advised action is the bright button: hover + click
