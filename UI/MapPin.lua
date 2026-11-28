@@ -6,6 +6,7 @@
 -- the map canvas: C_Map.SetUserWaypoint isn't reliable on WoW Forever.
 -- TomTom, if installed, also gets a waypoint.
 local _, ns = ...
+local L = ns.L
 local C = ns.C
 
 local MAP_ICON = "Interface\\Icons\\INV_Misc_Map_01"
@@ -50,7 +51,7 @@ function ns.EnableNpcLinks(frame)
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
         GameTooltip:AddLine(name, 1, 1, 1)
         GameTooltip:AddLine(("%s  %.1f, %.1f"):format(ns.MapName(c.m), c.x, c.y), C.gold[1], C.gold[2], C.gold[3])
-        GameTooltip:AddLine("Click to show on your map.", C.muted[1], C.muted[2], C.muted[3])
+        GameTooltip:AddLine(L["Click to show on your map."], C.muted[1], C.muted[2], C.muted[3])
         GameTooltip:Show()
     end)
     frame:SetScript("OnHyperlinkLeave", function() GameTooltip:Hide() end)
@@ -61,7 +62,7 @@ function ns.MapName(mapID)
         local ok, info = pcall(C_Map.GetMapInfo, mapID)
         if ok and info and info.name and info.name ~= "" then return info.name end
     end
-    return "Map " .. mapID
+    return L["Map %s"]:format(tostring(mapID))
 end
 
 ---------------------------------------------------------------------------
@@ -130,7 +131,7 @@ local function buildPin(parent)
         GameTooltip:AddLine(target.name, 1, 1, 1)
         if target.why then GameTooltip:AddLine(target.why, C.muted[1], C.muted[2], C.muted[3], true) end
         GameTooltip:AddLine(("%.1f, %.1f"):format(target.x, target.y), C.gold[1], C.gold[2], C.gold[3])
-        GameTooltip:AddLine("Right-click to remove.", C.muted[1], C.muted[2], C.muted[3])
+        GameTooltip:AddLine(L["Right-click to remove."], C.muted[1], C.muted[2], C.muted[3])
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -209,9 +210,9 @@ function ns.ShowNpcOnMap(name, why)
             end)
         end
         update()
-        print(ns.Color("violet", "DustyThready:") .. " " .. place .. " is marked on your map.")
+        print(ns.Color("violet", "DustyThready:") .. " " .. L["%s is marked on your map."]:format(place))
     else
-        print(ns.Color("violet", "DustyThready:") .. " " .. place .. " is marked: open your map after combat.")
+        print(ns.Color("violet", "DustyThready:") .. " " .. L["%s is marked: open your map after combat."]:format(place))
     end
     return true
 end

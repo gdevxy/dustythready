@@ -69,15 +69,17 @@ Description (Markdown):
 ```markdown
 ## Tailoring + Enchanting, woven together
 
-Tailoring turns the cloth you loot into greens. Enchanting turns those greens into the dust it levels with. **DustyThready** runs that loop for you, based on your skill, bags and level. Five tabs, almost no settings.
+Tailoring turns the cloth you loot into greens. Enchanting turns those greens into the dust it levels with. **DustyThready** runs that loop for you, based on your skill, bags and level. Five tabs (a sixth at skill 250), almost no settings.
 
-- **Today:** your next craft, crafts left, materials you have vs need, and alerts like *Train Expert now*. A **Thread & Dust** card shows how each profession feeds the other.
+- **Today:** your next craft with its colour (orange / yellow / green), honest crafts left, materials you have vs need, and alerts like *Train Expert now* or *Turned yellow: switch to X*. It picks a better recipe when your bags fit one, and shows what reaching your next cap costs.
 - **Roadmap:** the full WoW Forever 1-300 path for both professions. One click turns it into an **Auctionator** shopping list.
-- **Disenchant:** every green, blue and purple in your bags, with what it turns into and whether it beats the vendor. **One-click disenchant.**
-- **Where:** trainers, recipe vendors and cloth drops for your faction and level.
+- **Disenchant:** every green, blue and purple in your bags with clear advice: *disenchant it for your Enchanting*, *disenchant and sell the dust*, *sell it on the AH* or *vendor it*, and why. **One-click disenchant**, a **Disenchant next** key binding, and one-click selling at a vendor.
+- **Enchanting for others:** open a trade and DustyThready lists the enchants you can put on the customer's item, the mats they should bring and a fair tip. *Post my menu* writes your enchant list to chat.
+- **Where:** trainers, recipe vendors and cloth drops for your faction and level, with map pins.
 - **Gold:** money ideas for low-budget players, with live profit estimates.
+- **Endgame** (from skill 250): Mooncloth cooldowns for all your tailors, crafts that pay at 300, patterns worth chasing.
 
-Item tooltips show disenchant results and value. Minimap button included. Type `/dusty` to open.
+Material counts include your alts and your mailbox. Item tooltips show disenchant results, value and advice, and whether you need a pattern. English, German and French. Minimap button included. Type `/dusty` to open.
 
 *Optional: Auctionator for AH prices. Leveling paths follow wow-professions.com's Forever guides.*
 ```

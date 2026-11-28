@@ -1,8 +1,10 @@
 -- DustyThready: the main window (header, tab bar, content, footer).
 local _, ns = ...
+local L = ns.L
 local UI, C = ns.UI, ns.C
 
-ns.Tabs = {}      -- key -> { label, icon, build(content), refresh(content, snap) }
+ns.Tabs = {}      -- key -> { label, icon, build(content), refresh(content, snap), visible(snap)? }
+                  -- visible: optional; the tab is only in the bar while it returns true
 ns.TabOrder = {}
 
 function ns.RegisterTab(key, def)
@@ -27,9 +29,9 @@ end
 
 local function greeting(snap)
     local hour = tonumber(date("%H")) or 12
-    local hello = hour < 12 and "Good morning" or (hour < 18 and "Good afternoon" or "Good evening")
-    local name = UnitName("player") or "friend"
-    return ("%s, %s  ·  level %d  ·  %s"):format(hello, name, snap.level, ns.Money(snap.money, true))
+    local hello = hour < 12 and L["Good morning"] or (hour < 18 and L["Good afternoon"] or L["Good evening"])
+    local name = UnitName("player") or L["friend"]
+    return L["%s, %s  ·  level %d  ·  %s"]:format(hello, name, snap.level, ns.Money(snap.money, true))
 end
 
 function Main:Build()
@@ -86,7 +88,7 @@ function Main:Build()
     close:SetPoint("TOPRIGHT", -4, -4)
     close:SetScript("OnClick", function() f:Hide() end)
 
-    local gear = UI.Button(header, "Settings", 70, 20, function() self:ToggleSettings() end, "ghost")
+    local gear = UI.Button(header, L["Settings"], 70, 20, function() self:ToggleSettings() end, "ghost")
     gear:SetPoint("RIGHT", close, "LEFT", -6, 0)
 
     -- Tab bar
@@ -94,8 +96,8 @@ function Main:Build()
     bar:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 10, -8)
     bar:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", -10, -8)
     bar:SetHeight(28)
+    self.tabBar = bar
     self.tabButtons = {}
-    local x = 0
     for _, key in ipairs(ns.TabOrder) do
         local def = ns.Tabs[key]
         local b = CreateFrame("Button", nil, bar)
@@ -107,7 +109,7 @@ function Main:Build()
         b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         b.text = UI.Text(b, 13, C.muted)
         b.text:SetPoint("LEFT", b.icon, "RIGHT", 6, 0)
-        b.text:SetText(def.label)
+        b.text:SetText(L[def.label])
         b:SetWidth(b.text:GetStringWidth() + 40)
         b.line = b:CreateTexture(nil, "OVERLAY")
         b.line:SetTexture("Interface\\Buttons\\WHITE8x8")
@@ -118,13 +120,12 @@ function Main:Build()
         b.badge = UI.Pill(b, C.warn)
         b.badge:SetPoint("TOPRIGHT", 4, 4)
         b.badge:Hide()
-        b:SetPoint("LEFT", x, 0)
-        x = x + b:GetWidth() + 4
         b:SetScript("OnClick", function() self:Select(key) PlaySound(SOUNDKIT and SOUNDKIT.IG_CHARACTER_INFO_TAB or 841) end)
         b:SetScript("OnEnter", function(s) if self.current ~= key then s.text:SetTextColor(C.text[1], C.text[2], C.text[3]) end end)
         b:SetScript("OnLeave", function(s) if self.current ~= key then s.text:SetTextColor(C.muted[1], C.muted[2], C.muted[3]) end end)
         self.tabButtons[key] = b
     end
+    self:LayoutTabs(ns.Snapshot())
     local sep = UI.Divider(f)
     sep:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", -10, 0)
     sep:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 10, 0)
@@ -140,6 +141,7 @@ function Main:Build()
     self.footer = UI.Text(f, 10, C.muted)
     self.footer:SetPoint("BOTTOMLEFT", 12, 10)
     self.footer:SetPoint("BOTTOMRIGHT", -12, 10)
+    self.footer:SetWordWrap(false)
 
     f:SetScript("OnShow", function()
         PlaySound(SOUNDKIT and SOUNDKIT.IG_SPELLBOOK_OPEN or 829)
@@ -166,8 +168,36 @@ function Main:Page(key)
     return page
 end
 
+-- Tabs with a visible(snap) function only show while it returns true.
+function Main:IsTabVisible(key, snap)
+    local def = ns.Tabs[key]
+    if not def then return false end
+    if not def.visible then return true end
+    local ok, v = pcall(def.visible, snap or ns.Snapshot())
+    return ok and v and true or false
+end
+
+-- Places the visible tab buttons left to right.
+function Main:LayoutTabs(snap)
+    if not self.tabButtons then return end
+    local x = 0
+    for _, key in ipairs(ns.TabOrder) do
+        local b = self.tabButtons[key]
+        if b then
+            if self:IsTabVisible(key, snap) then
+                b:ClearAllPoints()
+                b:SetPoint("LEFT", x, 0)
+                b:Show()
+                x = x + b:GetWidth() + 4
+            else
+                b:Hide()
+            end
+        end
+    end
+end
+
 function Main:Select(key)
-    if not ns.Tabs[key] then key = "today" end
+    if not ns.Tabs[key] or not self:IsTabVisible(key) then key = "today" end
     self.current = key
     ns.db.tab = key
     for k, b in pairs(self.tabButtons) do
@@ -187,6 +217,11 @@ function Main:Refresh()
     if not (self.frame and self.frame:IsShown()) then return end
     local snap = ns.Snapshot()
     self.subtitle:SetText(greeting(snap))
+    self:LayoutTabs(snap)
+    if self.current and not self:IsTabVisible(self.current, snap) then
+        self:Select("today") -- refreshes again
+        return
+    end
     local page = self:Page(self.current or "today")
     local def = ns.Tabs[self.current or "today"]
     if def.refresh then def.refresh(page, snap) end
@@ -198,10 +233,17 @@ function Main:Refresh()
         if n > 0 then deBtn.badge:SetLabel(tostring(n), C.warn) deBtn.badge:Show() else deBtn.badge:Hide() end
     end
 
-    if ns.HasAuctionator() then
-        self.footer:SetText("Prices: Auctionator's last AH scan (open the Auction House to refresh them).  ·  /dusty  ·  Shift-click any icon to link it")
+    local session = ns.Session and ns.Session.FooterText()
+    if session then
+        -- Session progress first; keep the price note short so it fits on one line.
+        self.footer:SetText(session .. "  ·  " .. (ns.HasAuctionator() and L["Prices: Auctionator's last AH scan"]
+            or L["Install Auctionator for AH prices"]) .. "  ·  /dusty")
+    elseif ns.HasAuctionator() then
+        self.footer:SetText(L["Prices: Auctionator's last AH scan (open the Auction House to refresh them)."] ..
+            "  ·  /dusty  ·  " .. L["Shift-click any icon to link it"])
     else
-        self.footer:SetText("Tip: install Auctionator for live AH prices and profit estimates.  ·  /dusty  ·  Shift-click any icon to link it")
+        self.footer:SetText(L["Tip: install Auctionator for live AH prices and profit estimates."] ..
+            "  ·  /dusty  ·  " .. L["Shift-click any icon to link it"])
     end
 end
 
@@ -220,14 +262,14 @@ end
 ---------------------------------------------------------------------------
 function Main:BuildSettings()
     local s = UI.Panel(self.frame, C.panel, C.violet, 0.98)
-    s:SetSize(260, 120)
+    s:SetSize(260, 146)
     s:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", -10, -52)
     s:SetFrameLevel(self.frame:GetFrameLevel() + 30)
     s:Hide()
     self.settings = s
     local t = UI.Text(s, 13, C.gold)
     t:SetPoint("TOPLEFT", 12, -10)
-    t:SetText("Settings")
+    t:SetText(L["Settings"])
 
     local function check(label, y, get, set)
         local cb = CreateFrame("CheckButton", nil, s, "UICheckButtonTemplate")
@@ -240,11 +282,13 @@ function Main:BuildSettings()
         cb:SetScript("OnClick", function(self) set(self:GetChecked() and true or false) end)
         return cb
     end
-    check("Minimap button", -32, function() return not ns.db.minimap.hide end,
+    check(L["Minimap button"], -32, function() return not ns.db.minimap.hide end,
         function(v) ns.db.minimap.hide = not v ns:Fire("DT_MINIMAP") end)
-    check("Disenchant info in item tooltips", -58, function() return ns.db.tooltip end,
+    check(L["Disenchant info in item tooltips"], -58, function() return ns.db.tooltip end,
         function(v) ns.db.tooltip = v end)
-    local reset = UI.Button(s, "Re-center window", 120, 20, function() ns.db.window = nil self:ResetPosition() end, "ghost")
+    check(L["Cloth farm hints in chat"], -84, function() return ns.db.zoneHints ~= false end,
+        function(v) ns.db.zoneHints = v end)
+    local reset = UI.Button(s, L["Re-center window"], 120, 20, function() ns.db.window = nil self:ResetPosition() end, "ghost")
     reset:SetPoint("BOTTOMLEFT", 12, 10)
 end
 

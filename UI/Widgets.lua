@@ -1,5 +1,6 @@
 -- DustyThready: a small, consistent widget kit (flat, dark, violet + gold).
 local _, ns = ...
+local L = ns.L
 local C = ns.C
 local UI = {}
 ns.UI = UI
@@ -140,6 +141,14 @@ function UI.ItemButton(parent, size)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         if self.link then GameTooltip:SetHyperlink(self.link) else GameTooltip:SetItemByID(self.itemID) end
         if self.extra then GameTooltip:AddLine(" ") GameTooltip:AddLine(self.extra, 1, 1, 1, true) end
+        -- extraLines = { { left, right }, ... } (right optional): e.g. counts on other characters
+        if type(self.extraLines) == "table" and #self.extraLines > 0 then
+            GameTooltip:AddLine(" ")
+            for _, l in ipairs(self.extraLines) do
+                if l[2] then GameTooltip:AddDoubleLine(l[1], l[2], 1, 1, 1, 1, 1, 1)
+                else GameTooltip:AddLine(l[1], 1, 1, 1, true) end
+            end
+        end
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -316,6 +325,34 @@ function UI.Segmented(parent, options, onChange)
     return f
 end
 
+-- Hovering the chip's text shows the same tooltip as its icon.
+local function chipEnter(self)
+    local fn = self.btn and self.btn:GetScript("OnEnter")
+    if fn then fn(self.btn) end
+end
+local function chipLeave() GameTooltip:Hide() end
+
+-- When you are short: what your mailbox and other characters hold.
+-- Returns the " (+15 alts)" suffix and the tooltip lines, or "", nil.
+local function elsewhere(id, have, need)
+    if not ns.CountElsewhere then return "", nil end
+    local ok, total, list = pcall(ns.CountElsewhere, id)
+    if not ok or type(total) ~= "number" or total <= 0 or type(list) ~= "table" then return "", nil end
+    local onlyMail = #list == 1 and list[1].mailbox
+    local suffix = (" |cff%s(+%d %s)|r"):format(have + total >= need and ns.HEX.good or ns.HEX.violet,
+        math.min(total, 9999), onlyMail and L["mail"] or L["alts"])
+    local lines = { { "|cff" .. ns.HEX.gold .. L["Also on hand elsewhere:"] .. "|r" } }
+    for i, c in ipairs(list) do
+        if i > 8 then
+            table.insert(lines, { "|cff" .. ns.HEX.muted .. L["and %d more"]:format(#list - 8) .. "|r" })
+            break
+        end
+        local name = c.mailbox and L["Your mailbox"] or (ns.CharName and ns.CharName(c) or tostring(c.name))
+        table.insert(lines, { name, tostring(c.count) })
+    end
+    return suffix, lines
+end
+
 -- A row of "have/need" reagent chips, wrapping inside width. Returns height.
 function UI.LayoutMats(container, pool, mats, width, x0, y0)
     local x, y = x0 or 0, y0 or 0
@@ -327,9 +364,18 @@ function UI.LayoutMats(container, pool, mats, width, x0, y0)
         local need = m.need
         local ok = m.have >= need
         local col = ok and ns.HEX.good or ns.HEX.warn
-        chip.text:SetText(("|cff%s%d|r|cff%s/%d|r %s"):format(col, math.min(m.have, 9999), ns.HEX.muted, need, ns.ItemName(m.id)))
+        local more, lines = "", nil
+        if not ok then more, lines = elsewhere(m.id, m.have, need) end
+        chip.text:SetText(("|cff%s%d|r|cff%s/%d|r%s %s"):format(col, math.min(m.have, 9999), ns.HEX.muted, need, more, ns.ItemName(m.id)))
         local src = ns.SOURCES[m.id]
-        chip.btn.extra = src and ("|cff" .. ns.HEX.gold .. "Get it: |r" .. src[1]) or nil
+        chip.btn.extra = src and ("|cff" .. ns.HEX.gold .. L["Get it:"] .. " |r" .. L[src[1]]) or nil
+        chip.btn.extraLines = lines
+        if not chip.dtHover then
+            chip.dtHover = true
+            chip:SetScript("OnEnter", chipEnter)
+            chip:SetScript("OnLeave", chipLeave)
+        end
+        chip:EnableMouse(lines ~= nil)
         local w = 24 + chip.text:GetStringWidth() + 12
         chip:SetWidth(w)
         if x + w > width and x > (x0 or 0) then

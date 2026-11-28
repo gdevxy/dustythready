@@ -1,6 +1,7 @@
 -- DustyThready: "Gold" - money ideas that fit Tailoring + Enchanting, made
 -- concrete with your bags, your skills and Auctionator's AH prices.
 local _, ns = ...
+local L = ns.L
 local UI, C = ns.UI, ns.C
 
 local DUSTS = { 10940, 11083, 11137, 11176, 16204, 10938, 10939, 10998, 11082, 11134, 11135, 11174, 11175,
@@ -31,7 +32,9 @@ local function buildAd()
     for _, spell in ipairs(ns.POPULAR_ENCHANTS) do
         if ns.KnowsSpell(spell) then
             local name = ns.SpellName(spell, "")
-            name = name:gsub("^Enchant ", "")
+            -- "Bracer - Strength" from the (possibly localized) spell name
+            local key = name ~= "" and ns.EnchantSlotKey(spell, name)
+            if key then name = L[key] .. " - " .. ns.EnchantShort(name) end
             if name ~= "" then table.insert(known, name) end
         end
         if #known >= 5 then break end
@@ -45,23 +48,30 @@ local function cards(snap)
 
     -- 1. Disenchant vs vendor
     do
-        local list = ns.ScanBags()
-        local ev, sell, priced = 0, 0, 0
+        -- Same verdicts as the Disenchant tab (disenchant / sell on AH / vendor).
+        local list = ns.DEQueue and ns.DEQueue() or ns.ScanBags()
+        local n, priced = { progress = 0, gold = 0, ah = 0, vendor = 0 }, 0
         for _, it in ipairs(list) do
-            if it.pred.ev then ev = ev + it.pred.ev sell = sell + (it.pred.sell or 0) priced = priced + 1 end
+            local b = it.value and it.value.best
+            if b and n[b] then n[b] = n[b] + 1 priced = priced + 1 end
         end
         local body
         if #list == 0 then
-            body = "Every green you loot is worth more as dust than as vendor trash most of the time. Nothing in your bags right now."
+            body = L["Most greens you loot are worth more as dust than as vendor trash. Nothing in your bags right now."]
         elseif priced > 0 then
-            body = ("%d items in your bags: ~%s as reagents vs %s at the vendor.")
-                :format(#list, ns.Money(ev, true), ns.Money(sell, true))
+            local parts = {}
+            if n.progress > 0 then table.insert(parts, ns.Color("violet", L["disenchant %d for your Enchanting"]:format(n.progress))) end
+            if n.gold > 0 then table.insert(parts, ns.Color("good", L["disenchant %d for gold"]:format(n.gold))) end
+            if n.ah > 0 then table.insert(parts, ns.Color("gold", L["sell %d on the AH"]:format(n.ah))) end
+            if n.vendor > 0 then table.insert(parts, ns.Color("warn", L["vendor %d"]:format(n.vendor))) end
+            body = L["In your bags: %s"]:format(table.concat(parts, "  ·  ")) .. "\n" ..
+                L["The Disenchant tab says why for each item."]
         else
-            body = ("%d items in your bags could be disenchanted. Scan the AH with Auctionator to see what they're worth."):format(#list)
+            body = L["%d items in your bags could be disenchanted. Scan the AH with Auctionator to see what they're worth."]:format(#list)
         end
-        table.insert(out, { icon = 132857, title = "Never vendor a green again",
-            lead = "Zero investment. The best money for a broke level 40.", body = body,
-            btn = #list > 0 and "Disenchant tab" or nil, click = function() ns.Main:Select("disenchant") end })
+        table.insert(out, { icon = 132857, title = L["Disenchant, sell or vendor: pick the best"],
+            lead = L["Zero investment. Most greens are worth more as dust, some sell better as they are."], body = body,
+            btn = #list > 0 and L["Disenchant tab"] or nil, click = function() ns.Main:Select("disenchant") end })
     end
 
     -- 2. Enchant for tips
@@ -69,15 +79,15 @@ local function cards(snap)
         local known = buildAd()
         local body
         if #known > 0 then
-            body = "You can sell these right now: " .. ns.Color("violet", table.concat(known, ", ")) ..
-                ".\nStand near the bank / AH, people bring their own mats and tip you. Great while you wait for a group."
+            body = L["You can sell these right now: %s."]:format(ns.Color("violet", table.concat(known, ", "))) ..
+                "\n" .. L["Stand near the bank / AH, people bring their own mats and tip you. Great while you wait for a group."]
         else
-            body = "Once you know Bracer - Strength, Boots - Lesser Agility or Cloak - Greater Defense, people will pay you to apply them with their own mats."
+            body = L["Once you know Bracer - Strength, Boots - Lesser Agility or Cloak - Greater Defense, people will pay you to apply them with their own mats."]
         end
-        table.insert(out, { icon = 136244, title = "Enchant for tips",
-            lead = "Your skill is the product. Customers bring the mats.", body = body,
-            btn = #known > 0 and "Write my ad" or nil, click = function()
-                local ad = "/2 Enchanter LF work! " .. table.concat(known, ", ") .. ". Your mats, tips appreciated - whisper me!"
+        table.insert(out, { icon = 136244, title = L["Enchant for tips"],
+            lead = L["Your skill is the product. Customers bring the mats."], body = body,
+            btn = #known > 0 and L["Write my ad"] or nil, click = function()
+                local ad = "/2 " .. L["Enchanter LF work! %s. Your mats, tips appreciated - whisper me!"]:format(table.concat(known, ", "))
                 ns.OpenChat(ad)
             end })
     end
@@ -93,16 +103,16 @@ local function cards(snap)
                 if surplus > 0 then
                     local p = ns.AHPrice(id)
                     table.insert(lines, ("%s %s %s%s"):format(ns.IconString(ns.ItemIcon(id), 14), ns.Color("good", surplus), ns.ItemName(id),
-                        p and ns.Color("muted", ("  ~ %s on the AH"):format(ns.Money(p * surplus, true))) or ""))
+                        p and ns.Color("muted", "  " .. L["~ %s on the AH"]:format(ns.Money(p * surplus, true))) or ""))
                 elseif need > 0 then
                     table.insert(lines, ("%s %s %s  %s"):format(ns.IconString(ns.ItemIcon(id), 14), have, ns.ItemName(id),
-                        ns.Color("warn", ("keep: your path still needs %d"):format(need))))
+                        ns.Color("warn", L["keep: your path still needs %d"]:format(need))))
                 end
             end
         end
-        table.insert(out, { icon = 132858, title = "Sell your surplus reagents",
-            lead = "Levelers always need dust. Sell what your own path won't use.",
-            body = #lines > 0 and table.concat(lines, "\n") or "No dust or essence in your bags yet." })
+        table.insert(out, { icon = 132858, title = L["Sell your surplus reagents"],
+            lead = L["Levelers always need dust. Sell what your own path won't use."],
+            body = #lines > 0 and table.concat(lines, "\n") or L["No dust or essence in your bags yet."] })
     end
 
     -- 4. Crafts that sell
@@ -112,21 +122,21 @@ local function cards(snap)
             local p = snap[craft.prof]
             local can = p and p.skill >= craft.skill
             local status
-            if not p then status = ns.Color("muted", "needs " .. (craft.prof == "tailoring" and "Tailoring" or "Enchanting"))
-            elseif not can then status = ns.Color("muted", ("at skill %d"):format(craft.skill))
+            if not p then status = ns.Color("muted", L["needs %s"]:format(L[craft.prof == "tailoring" and "Tailoring" or "Enchanting"]))
+            elseif not can then status = ns.Color("muted", L["at skill %d"]:format(craft.skill))
             else
                 local r = ns.CraftProfit(craft)
                 if r.profit then
-                    status = r.profit > 0 and ns.Color("good", "+" .. ns.Money(r.profit, true) .. " each")
-                        or ns.Color("bad", ns.Money(r.profit, true) .. " each")
-                elseif r.sale then status = ns.Color("text", "sells ~" .. ns.Money(r.sale, true))
-                else status = ns.Color("muted", "no AH data yet") end
+                    status = r.profit > 0 and ns.Color("good", L["%s each"]:format("+" .. ns.Money(r.profit, true)))
+                        or ns.Color("bad", L["%s each"]:format(ns.Money(r.profit, true)))
+                elseif r.sale then status = ns.Color("text", L["sells ~%s"]:format(ns.Money(r.sale, true)))
+                else status = ns.Color("muted", L["no AH data yet"]) end
             end
             table.insert(lines, ("%s %s  %s\n     %s"):format(ns.IconString(ns.ItemIcon(craft.out), 14),
-                ns.ItemText(craft.out), status, ns.Color("muted", craft.why)))
+                ns.ItemText(craft.out), status, ns.Color("muted", L[craft.why])))
         end
-        table.insert(out, { icon = 133639, title = "Crafts that sell",
-            lead = "Profit = AH price after the 5% cut, minus what the mats would cost you.",
+        table.insert(out, { icon = 133639, title = L["Crafts that sell"],
+            lead = L["Profit = AH price after the 5% cut, minus what the mats would cost you."],
             body = table.concat(lines, "\n") })
     end
 
@@ -137,14 +147,14 @@ local function cards(snap)
             local pb, pc = ns.AHPrice(b.bolt), ns.AHPrice(b.cloth)
             if pb and pc then
                 local inCloth = pc * b.n
-                local verdict = pb * 0.95 > inCloth * 0.95 and ns.Color("good", "sell bolts") or ns.Color("text", "sell raw cloth")
-                table.insert(lines, ("%s %s %s vs %d× %s %s  »  %s"):format(ns.IconString(ns.ItemIcon(b.bolt), 14), ns.ItemName(b.bolt),
+                local verdict = pb * 0.95 > inCloth * 0.95 and ns.Color("good", L["sell bolts"]) or ns.Color("text", L["sell raw cloth"])
+                table.insert(lines, L["%s %s %s vs %d× %s %s  »  %s"]:format(ns.IconString(ns.ItemIcon(b.bolt), 14), ns.ItemName(b.bolt),
                     ns.Money(pb, true), b.n, ns.ItemName(b.cloth), ns.Money(inCloth, true), verdict))
             end
         end
-        table.insert(out, { icon = 132903, title = "Bolts or raw cloth?",
-            lead = "Other tailors buy whichever saves them time. Check before you craft.",
-            body = #lines > 0 and table.concat(lines, "\n") or "Open the Auction House with Auctionator once to get cloth prices." })
+        table.insert(out, { icon = 132903, title = L["Bolts or raw cloth?"],
+            lead = L["Other tailors buy whichever saves them time. Check before you craft."],
+            body = #lines > 0 and table.concat(lines, "\n") or L["Open the Auction House with Auctionator once to get cloth prices."] })
     end
 
     -- 6. Farm cloth at your level
@@ -156,26 +166,26 @@ local function cards(snap)
         best = best or ns.CLOTH_FARMS[#ns.CLOTH_FARMS]
         local spots = {}
         for _, s in ipairs(best.spots) do
-            if s[3] == "N" or s[3] == snap.faction then table.insert(spots, ns.Color("gold", s[1]) .. " (" .. s[2] .. ")") end
+            if s[3] == "N" or s[3] == snap.faction then table.insert(spots, ns.Color("gold", ns.ZoneName(s[1])) .. " (" .. L[s[2]] .. ")") end
             if #spots >= 3 then break end
         end
         local p = ns.AHPrice(best.cloth)
-        table.insert(out, { icon = ns.ItemIcon(best.cloth), title = "Quest where the cloth drops",
-            lead = ("At level %d you loot %s%s. You need it, and so does everyone else."):format(snap.level, ns.ItemName(best.cloth),
-                p and (" (~" .. ns.Money(p * 20, true) .. " a stack)") or ""),
-            body = "Try: " .. table.concat(spots, ", ") .. ".",
-            btn = "All spots", click = function() ns.Main:Select("places") end })
+        table.insert(out, { icon = ns.ItemIcon(best.cloth), title = L["Quest where the cloth drops"],
+            lead = L["At level %d you loot %s%s. You need it, and so does everyone else."]:format(snap.level, ns.ItemName(best.cloth),
+                p and (" " .. L["(~%s a stack)"]:format(ns.Money(p * 20, true))) or ""),
+            body = L["Try: %s."]:format(table.concat(spots, ", ")),
+            btn = L["All spots"], click = function() ns.Main:Select("places") end })
     end
 
     -- 7. Habits
-    table.insert(out, { icon = 133784, title = "Little habits, real gold",
-        lead = "What experienced sellers do without thinking.",
+    table.insert(out, { icon = 133784, title = L["Little habits, real gold"],
+        lead = L["What experienced sellers do without thinking."],
         body = table.concat({
-            "- Post reagents in the stack sizes people craft with (5, 10, 20).",
-            "- Undercut by a copper, not by half. Don't crash your own market.",
-            "- Buy threads, dyes, vials and seeds from vendors. Never from the AH.",
-            "- Before you vendor anything, hover it: DustyThready shows its disenchant value.",
-            "- Bags and wands sell best in the evening, when alts and new players are online.",
+            "- " .. L["Post reagents in the stack sizes people craft with (5, 10, 20)."],
+            "- " .. L["Undercut by a copper, not by half. Don't crash your own market."],
+            "- " .. L["Buy threads, dyes, vials and seeds from vendors. Never from the AH."],
+            "- " .. L["Before you vendor anything, hover it: DustyThready shows its disenchant value."],
+            "- " .. L["Bags and wands sell best in the evening, when alts and new players are online."],
         }, "\n") })
     return out
 end

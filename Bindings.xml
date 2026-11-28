@@ -1,0 +1,3 @@
+<Bindings>
+    <Binding name="CLICK DustyThreadyDENextButton:LeftButton" header="DUSTYTHREADY" category="ADDONS" runOnUp="true"/>
+</Bindings>

@@ -6,6 +6,7 @@
 -- wide = true (Today card): [Craft] on [icon] Item name   (left-aligned)
 -- wide = false (Roadmap):   [icon] [Craft]                 (anchor its right edge)
 local _, ns = ...
+local L = ns.L
 local UI, C = ns.UI, ns.C
 
 local BTN_W, H = 96, 22
@@ -61,8 +62,8 @@ local function openPicker(anchor, step, st)
     picker = picker or buildPicker()
     if picker:IsShown() and picker.anchor == anchor then picker:Hide() return end
     picker.anchor = anchor
-    picker.title:SetText("Enchant which " .. st.slot.noun .. "?")
-    picker.hint:SetText("Leveling tip: any cheap one works. Enchanting a bag item binds it to you.")
+    picker.title:SetText(L["Enchant which %s?"]:format(L[st.slot.noun]))
+    picker.hint:SetText(L["Leveling tip: any cheap one works. Enchanting a bag item binds it to you."])
     picker.rows:Release()
     local y = 8 + picker.title:GetStringHeight() + 3 + picker.hint:GetStringHeight() + 8
     for i, c in ipairs(st.targets) do
@@ -73,8 +74,8 @@ local function openPicker(anchor, step, st)
         r:SetPoint("TOPLEFT", 10, -y)
         r.icon:SetTexture(c.icon or 134400)
         r.name:SetText(c.link)
-        local tag = c.equip and "equipped" or "in bags"
-        if st.target and c.key == st.target.key then tag = ns.Color("good", "selected") end
+        local tag = c.equip and L["equipped"] or L["in bags"]
+        if st.target and c.key == st.target.key then tag = ns.Color("good", L["selected"]) end
         r.tag:SetText(tag)
         r:SetScript("OnClick", function()
             ns.SetCraftTarget(step, c)
@@ -97,7 +98,7 @@ function UI.CraftControl(parent, wide)
     f:SetHeight(H)
     f.wide = wide
 
-    f.btn = UI.Button(f, "Craft", BTN_W, H, nil, "primary")
+    f.btn = UI.Button(f, L["Craft"], BTN_W, H, nil, "primary")
     f.btn:RegisterForClicks("LeftButtonUp")
     f.btn:SetScript("OnClick", function()
         if f.prof and f.step then ns.DoCraft(f.prof, f.step, f.state, IsShiftKeyDown()) end
@@ -108,13 +109,13 @@ function UI.CraftControl(parent, wide)
         if IsModifiedClick("CHATLINK") and self.link then ns.InsertLink(self.link) return end
         if f.state and f.state.targets and #f.state.targets > 0 then openPicker(self, f.step, f.state) end
     end)
-    f.target.extra = ns.Color("gold", "Click to choose another item.")
+    f.target.extra = ns.Color("gold", L["Click to choose another item."])
 
     if wide then
         f.btn:SetPoint("LEFT")
         f.on = UI.Text(f, 11, C.muted)
         f.on:SetPoint("LEFT", f.btn, "RIGHT", 8, 0)
-        f.on:SetText("on")
+        f.on:SetText(L["on"])
         f.target:SetPoint("LEFT", f.on, "RIGHT", 6, 0)
         f.targetName = CreateFrame("Button", nil, f)
         f.targetName:SetPoint("LEFT", f.target, "RIGHT", 6, 0)
@@ -151,7 +152,7 @@ function UI.CraftControl(parent, wide)
             self.on:SetShown(showTarget and true or false)
             self.targetName:SetShown(showTarget and true or false)
             if showTarget then
-                self.targetName.text:SetText(st.target.link .. ns.Color("muted", st.target.equip and "  (equipped)" or ""))
+                self.targetName.text:SetText(st.target.link .. ns.Color("muted", st.target.equip and ("  (" .. L["equipped"] .. ")") or ""))
             end
             return self:GetWidth()
         end

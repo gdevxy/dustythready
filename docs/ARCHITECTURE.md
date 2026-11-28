@@ -11,32 +11,59 @@ for debugging (`/dump DustyThready.Snapshot()`).
 (repository root = the addon folder; .pkgmeta keeps docs/, tools/, README.md, CLAUDE.md out of the zip)
   DustyThready.toc      Interface 16001 (WoW Forever), saved variables, addon compartment hooks.
                         Version is @project-version@: the packager replaces it with the git tag.
+  Bindings.xml          key binding "Disenchant next item" (clicks DustyThreadyDENextButton, see
+                        TabDisenchant.lua; the binding texts are set there through L)
   Libs/                 LibStub, CallbackHandler-1.0, LibDataBroker-1.1, LibDBIcon-1.0
+  Locales/
+    deDE.lua, frFR.lua  translations: ns.LOCALES["deDE"] = { ["English"] = "Deutsch", ... }
+  Locale.lua            ns.L (English key -> active translation, falls back to the key),
+                        ns.SetLocale, ns.IsTranslated, ns.ClientIsEnglish (see Localization)
   Core.lua              namespace, colors, saved vars, event bus, safe API wrappers, items, money,
-                        prices (Auctionator), profession skill reading, slash commands
+                        prices (Auctionator), profession skill reading, materials on other
+                        characters and in the mailbox (ns.CountAlts, ns.CountMail,
+                        ns.CountElsewhere), ns.ZoneName, slash commands
   Data/
     Items.lua           fallback English item names + "where to get it" per reagent (ns.SOURCES)
     Tailoring.lua       ns.RANKS (trainer ranks) and ns.TAILORING (1-300 steps)
     Enchanting.lua      ns.ENCHANTING (1-300 steps, two routes) and ns.POPULAR_ENCHANTS
     Disenchant.lua      ns.DE_ROWS (required level -> reagents) and ns.DE_ODDS
-    Places.lua          ns.TRAINERS, ns.RECIPE_SOURCES, ns.SUPPLIES, ns.CLOTH_FARMS
-    Gold.lua            ns.GOLD_CRAFTS (crafts with live profit), ns.BOLTS (bolt vs cloth)
+    Places.lua          ns.TRAINERS, ns.RECIPE_SOURCES, ns.SUPPLIES, ns.CLOTH_FARMS,
+                        ns.ZONE_MAPS (English zone name -> UiMapID)
     Coords.lua          GENERATED ns.NPC_COORDS (name -> UiMapID, x, y) by tools\extract-npc-coords.ps1
+    Gold.lua            ns.GOLD_CRAFTS (crafts with live profit), ns.BOLTS (bolt vs cloth)
+    EnchantService.lua  ns.SERVICE_ENCHANTS: order of the enchants offered in the trade window
+    EnchantSlots.lua    ns.ENCHANT_SLOT: enchant spell ID -> slot key ("Bracer", "2H Weapon"...)
+    RecipeSkill.lua     ns.RECIPE_SKILL: recipe spell -> { orange, yellow, green, grey } (Forever values;
+                        the client reports no recipe colours). Used by ns.RecipeColor.
+    Endgame.lua         ns.MOONCLOTH (spell, cooldown, vendor), ns.ENDGAME_CRAFTS (same shape as
+                        GOLD_CRAFTS), ns.ENDGAME_PATTERNS (famous patterns / formulas + sources)
   Logic.lua             pure-ish functions over data + game state (see below)
-  Craft.lua             one-click crafting: craft state, enchant targets, OpenTradeSkill + CraftRecipe
+  Craft.lua             one-click crafting: craft state, enchant slots (ns.EnchantSlotKey,
+                        ns.EnchantShort) and targets, OpenTradeSkill + CraftRecipe
+  Service.lua           selling Enchanting in the trade window: known enchants for the item in
+                        the "Will not be traded" slot, mats from the recipe schematic, quote + tip,
+                        "Post my menu" chat line, CraftRecipe + ClickTargetTradeButton(7)
+  Endgame.lua           ns.Endgame: Mooncloth cooldown per tailor (account-wide), login / ready alerts
+  Session.lua           ns.Session: "this session" skill-ups, reagents gained, disenchant value
+                        (footer line)
   UI/
     Widgets.lua         ns.UI: Panel, Text, Button, Pill, ProgressBar, ItemButton, Scroll, Pool,
-                        Segmented, LayoutMats (have/need chips)
-    Main.lua            window, header, tab bar, footer, settings popover, ns.RegisterTab
+                        Segmented, LayoutMats (have/need chips, + mailbox/alts counts)
+    Main.lua            window, header, tab bar (tabs may have visible(snap)), footer, settings
+                        popover, ns.RegisterTab
     Craft.lua           UI.CraftControl (Craft button + enchant target chip) and the target picker
     MapPin.lua          NPC links (ns.NpcLink, ns.EnableNpcLinks) and the world-map pin (ns.ShowNpcOnMap)
     TabToday.lua        profession cards + "Thread & Dust" synergy card + bag teaser
     TabRoadmap.lua      step list, route switch, shopping list popover (+ Auctionator export)
-    TabDisenchant.lua   bag scan, secure one-click disenchant overlay, cheat sheet
+    TabDisenchant.lua   bag scan, AH / disenchant / vendor verdict, secure one-click disenchant
+                        overlay, "Disenchant next" binding button, cheat sheet
     TabPlaces.lua       "Where": next stops, trainers, recipes, supplies, cloth farms
     TabGold.lua         money cards
+    TabEndgame.lua      "Endgame" (only shown at 250+): Mooncloth cooldowns, top crafts, patterns
     Tooltip.lua         item tooltip lines (TooltipDataProcessor)
     Minimap.lua         minimap button (LibDataBroker launcher + LibDBIcon)
+    Trade.lua           Enchanting service panel docked to the trade window (uses Service.lua)
+    ZoneHint.lua        one chat line per zone when its cloth farm fits your level (ns.db.zoneHints)
   Media/
     icon.tga            128x128 32-bit TGA used in game
     icon-source.jpg     original artwork (not packaged)
@@ -77,6 +104,13 @@ A **step** (in `ns.TAILORING` / `ns.ENCHANTING`):
 | `ns.RemainingNeed(prof, skill, id)` | how many of an item the rest of the path still uses |
 | `ns.ScanBags()` | disenchantable items in bags with predictions |
 | `ns.CraftProfit(craft)` | `{ cost, sale, profit }` from Auctionator prices |
+| `ns.RecipeColor(spell, skill)` | `"orange"/"yellow"/"green"/"grey"` or nil, from the colours read while a profession window was open (`DustyThreadyCharDB.difficulty`); second value true when read at exactly this skill |
+| `ns.EstimateCrafts(prof, step, skill)` | crafts left, made honest by the colour (yellow ~1.6 and green ~4 crafts per point): `n, about, color` |
+| `ns.ChooseStep(prof, skill)` | what to craft now: the guide's step or an alternative you know that is better (`reason` = `"learned"`, `"color"`, `"bags"`, `"cost"`), with `crafts`, `about`, `color`, `grey` |
+| `ns.CapNeeds(prof, snap)` | everything the remaining steps up to the trainer cap use: `totals[id], order, cap, produced[id]` (what your own steps make, e.g. bolts) |
+| `ns.CapBudget(prof, snap)` | nil without Auctionator, else `{ cap, cost, unknown, top, money, short, done }` for the missing AH mats; `ns.BudgetText(b, compact)` words it |
+| `ns.CountAlts(id)` (Core) | total and list of what your other characters (same realm(s) and faction) hold: own cache in `DustyThreadyDB.chars`, Syndicator wins when installed |
+| `ns.CountMail(id)` (Core) | what this character's mailbox held when last opened; `ns.CountElsewhere(id)` = mailbox + alts |
 
 Disenchant predictions read **live item info** (quality, required level, weapon/armor), so they work
 for any item, not only the ones in our data.
@@ -111,7 +145,8 @@ first view (`build(page)`), then `refresh(page, snap)` re-lays them out. Rows co
   ready within the same click, the player clicks again: never craft from an event handler. Enchants
   on items use `CraftEnchant(spellID, 1, nil, ItemLocation)`; the fallback casts the recipe and applies
   it with `PickupInventoryItem` / `C_Container.PickupContainerItem` while `SpellIsTargeting()`.
-  The enchant's slot is parsed from the step name (`"Enchant Bracer - ..."`).
+  The enchant's slot comes from its spell ID (`ns.ENCHANT_SLOT`, `Data/EnchantSlots.lua`); parsing
+  the (localized) spell name is only the fallback (`ns.EnchantSlotKey` in `Craft.lua`).
 - **Map pins** (`UI/MapPin.lua`): `C_Map.SetUserWaypoint` isn't reliable on Forever, so (like
   ForeverDungeonJournal) we draw our own pin on `WorldMapFrame:GetCanvas()` at
   `width * x/100, -height * y/100`, shown only while `WorldMapFrame:GetMapID()` is the NPC's map.
@@ -127,8 +162,43 @@ first view (`build(page)`), then `refresh(page, snap)` re-lays them out. Rows co
 - **Minimap button**: always go through LibDBIcon. Minimap-button managers (e.g. Leatrix Plus)
   refuse custom buttons and show *This is a custom button* in the tooltip.
 
+## Localization
+
+- `Locales/<code>.lua` load first and fill `ns.LOCALES[code]`; `Locale.lua` then creates `ns.L`
+  and picks the table for `GetLocale()`. The English text **is** the key: `L["Shopping list"]`,
+  `L["Train %s now%s: %s, %s."]:format(...)`. A missing (or empty) translation returns the key, so
+  untranslated texts stay English. Lookups are not cached: `ns.SetLocale(code)` switches at once.
+- Every file that shows text starts with `local _, ns = ...` then `local L = ns.L`. Wrap texts
+  **where they are shown**, not where they are stored: `Data/` stays English (tips, sources, rank
+  names, slot keys) and the UI shows `L[step.tip]`, `L[r.name]`, `L[src[1]]`... Logic that compares
+  data strings (`ns.KeyReagent` looks for "Disenchant" in `ns.SOURCES`) keeps working.
+- Never wrap identifiers, saved-variable keys, event names, macros or values that are compared.
+  The disenchant macro uses the client's spell name (`ns.SpellName(13262, "Disenchant")`).
+- Game names come from the client: items (`ns.ItemName`), spells (`ns.SpellName`), zones
+  (`ns.ZoneName(englishName)`: the map name of `ns.ZONE_MAPS[name]` on a non-English client,
+  else `L[name]`), faction names (`FACTION_HORDE`), soulbound text (`ITEM_SOULBOUND`).
+  Zone matching uses UiMapIDs (`UI/ZoneHint.lua`), enchant slots use spell IDs. NPC names stay
+  English: they are the keys of `ns.NPC_COORDS` and the map links.
+- Plurals: two keys (`"%d item"` / `"%d items"`). English articles: `ns.Article(word)` adds
+  "a"/"an" only when no translation is active; translated sentences are written around the word.
+- Testing another language on any client: `/dusty locale deDE` (or `frFR`, `enUS`, `auto`), then
+  `/reload` so texts built at load time (binding names, the verdict labels) follow too. Saved in
+  `DustyThreadyDB.locale`.
+- Translations must keep every `%s`/`%d` in the same order and stay Latin-1 (German and French
+  accents are fine; no curly quotes, no ellipsis character, no French "oe" ligature). Check the
+  locale files for characters above U+00FF like the rest of the code.
+
 ## Saved variables
 
 - `DustyThreadyDB` (account): minimap, tooltip toggle, window position, last tab, enchant route,
-  roadmap profession, `ignoredDE` (items the player chose to keep).
-- `DustyThreadyCharDB` (character): `learned` recipe cache, filled while a profession window is open.
+  roadmap profession, `ignoredDE` (items the player chose to keep), `zoneHints` (false = no cloth
+  farm hints; nil/true = on), `locale` (forced language, nil = the client's), and:
+  - `chars["Name-Realm"]` = `{ name, realm, faction, class, level, updated, items = { [itemID] =
+    { bags, bank, mail } } }`: what each character holds of the items DustyThready tracks
+    (filled by each character's bag / bank / mailbox scans; read by `ns.CountAlts`).
+  - `mooncloth["Name-Realm"]` = `{ readyAt = epoch seconds (0 = ready), class }`: Mooncloth
+    cooldown per tailor (`Endgame.lua`).
+- `DustyThreadyCharDB` (character): `learned` recipe cache and `scanned` (profession lines whose
+  recipe list was read), filled while a profession window is open; `difficulty[spell]` =
+  `{ c = colour, at = skill, y, g, x = lowest skill seen yellow / green / grey }` for
+  `ns.RecipeColor`.

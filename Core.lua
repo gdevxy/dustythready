@@ -5,6 +5,7 @@
 
 local ADDON, ns = ...
 _G.DustyThready = ns
+local L = ns.L -- Locale.lua (loaded first)
 
 ns.name = ADDON
 ns.ICON = "Interface\\AddOns\\DustyThready\\Media\\icon.tga"
@@ -45,6 +46,7 @@ local DEFAULTS = {
     roadmapProf = "tailoring",
     ignoredDE = {},         -- itemID -> true: never suggest disenchanting it
     welcomed = false,
+    chars = {},             -- "Name-Realm" -> what that character holds (see "other characters" below)
 }
 local CHAR_DEFAULTS = {
     learned = {},           -- recipe spellID -> true (learned recipes, cached from the profession window)
@@ -119,7 +121,7 @@ function ns.SpellName(id, fallback)
         local ok, n = pcall(GetSpellInfo, id)
         if ok then name = clean(n) end
     end
-    return name or fallback or ("Spell " .. id)
+    return name or fallback or L["Spell %s"]:format(tostring(id))
 end
 
 function ns.KnowsSpell(id)
@@ -163,13 +165,13 @@ end
 function ns.ItemName(id)
     local info = ns.ItemInfo(id)
     if info then return info.name end
-    return (ns.ITEM_NAMES and ns.ITEM_NAMES[id]) or ("Item " .. id)
+    return (ns.ITEM_NAMES and ns.ITEM_NAMES[id]) or L["Item %s"]:format(tostring(id))
 end
 
 -- Name colored by quality (white if unknown).
 function ns.ItemText(id)
     local info = ns.ItemInfo(id)
-    local name = info and info.name or (ns.ITEM_NAMES and ns.ITEM_NAMES[id]) or ("Item " .. id)
+    local name = info and info.name or (ns.ITEM_NAMES and ns.ITEM_NAMES[id]) or L["Item %s"]:format(tostring(id))
     local q = info and info.quality or 1
     local color = ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[q]
     if color and color.hex then return color.hex .. name .. "|r" end
@@ -181,11 +183,363 @@ function ns.ItemIcon(id)
     return (ok and icon) or 134400 -- question mark
 end
 
-function ns.Count(id)
+-- Bags + bank on this character. includeMail = also what waits in this
+-- character's mailbox (as last seen when the mailbox was open).
+function ns.Count(id, includeMail)
     if not GetItemCount then return 0 end
     local ok, n = pcall(GetItemCount, id, true) -- bags + bank
-    return (ok and clean(n)) or 0
+    n = (ok and clean(n)) or 0
+    if includeMail and ns.CountMail then n = n + ns.CountMail(id) end
+    return n
 end
+
+---------------------------------------------------------------------------
+-- Materials on the other characters and in the mailbox
+--   DustyThreadyDB.chars["Name-Realm"] = { name, realm, faction "A"/"H"/"N",
+--       class (e.g. "MAGE"), level, updated = time(),
+--       items = { [itemID] = { bags = n, bank = n, mail = n } } }
+-- Only items DustyThready uses are stored (reagents, disenchant mats, cloth)
+-- and only non-zero fields, to keep the saved variables small. Each
+-- character fills its own entry; alts are read from the other entries
+-- (or from Syndicator when it is installed).
+---------------------------------------------------------------------------
+local tracked -- itemID -> true, built on first use (after the Data files are loaded)
+
+local function track(id)
+    if type(id) == "number" and id > 0 then tracked[id] = true end
+end
+
+local function trackMats(list)
+    for _, s in ipairs(list or {}) do
+        if type(s) == "table" then
+            for _, m in ipairs(s.mats or {}) do
+                if type(m) == "table" then track(m[1]) end
+            end
+            if s.alts then trackMats(s.alts) end
+        end
+    end
+end
+
+function ns.TrackedItems()
+    if tracked then return tracked end
+    tracked = {}
+    for _, id in ipairs(ns.ALL_ITEM_IDS or {}) do track(id) end
+    for id in pairs(ns.ITEM_NAMES or {}) do track(id) end
+    trackMats(ns.TAILORING)
+    trackMats(ns.ENCHANTING)
+    trackMats(ns.GOLD_CRAFTS)
+    for _, r in ipairs(ns.DE_ROWS or {}) do
+        if type(r.dust) == "table" then track(r.dust[1]) end
+        if type(r.essence) == "table" then track(r.essence[1]) end
+        track(r.shard)
+        track(r.crystal)
+    end
+    for _, b in ipairs(ns.BOLTS or {}) do track(b.bolt) track(b.cloth) end
+    for _, f in ipairs(ns.CLOTH_FARMS or {}) do track(f.cloth) end
+    return tracked
+end
+
+local function factionLetter()
+    local ok, f = pcall(UnitFactionGroup, "player")
+    f = ok and clean(f) or nil
+    return f == "Horde" and "H" or (f == "Alliance" and "A" or "N")
+end
+
+local function realmName()
+    if GetNormalizedRealmName then
+        local ok, r = pcall(GetNormalizedRealmName)
+        if ok and type(clean(r)) == "string" and r ~= "" then return r end
+    end
+    if GetRealmName then
+        local ok, r = pcall(GetRealmName)
+        if ok and type(clean(r)) == "string" and r ~= "" then return (r:gsub("[%s%-]", "")) end
+    end
+end
+
+local me -- { key = "Name-Realm", name, realm } once the game knows them
+local function whoAmI()
+    if me then return me end
+    local ok, name = pcall(UnitName, "player")
+    name = ok and clean(name) or nil
+    if type(name) ~= "string" or name == "" or name == _G.UNKNOWNOBJECT then return nil end
+    local realm = realmName()
+    if not realm then return nil end
+    me = { key = name .. "-" .. realm, name = name, realm = realm }
+    return me
+end
+
+-- This character's saved entry (read-only lookup, may be nil).
+local function myEntry()
+    local id = whoAmI()
+    local chars = ns.db and ns.db.chars
+    if not id or type(chars) ~= "table" then return nil end
+    local rec = chars[id.key]
+    return type(rec) == "table" and rec or nil
+end
+
+-- This character's entry, created and stamped (used by the scans).
+local function myRecord()
+    local id = whoAmI()
+    if not id or not ns.db then return nil end
+    if type(ns.db.chars) ~= "table" then ns.db.chars = {} end
+    local rec = ns.db.chars[id.key]
+    if type(rec) ~= "table" then rec = {} ns.db.chars[id.key] = rec end
+    if type(rec.items) ~= "table" then rec.items = {} end
+    rec.name, rec.realm, rec.faction = id.name, id.realm, factionLetter()
+    local okC, _, class = pcall(UnitClass, "player")
+    if okC and clean(class) then rec.class = class end
+    local okL, level = pcall(UnitLevel, "player")
+    if okL and clean(level) then rec.level = level end
+    rec.updated = time()
+    return rec
+end
+
+local function setField(items, id, field, n)
+    if type(n) ~= "number" or n <= 0 then n = nil end
+    local e = items[id]
+    if type(e) ~= "table" then
+        if not n then items[id] = nil return end
+        e = {}
+        items[id] = e
+    end
+    e[field] = n
+    if not e.bags and not e.bank and not e.mail then items[id] = nil end
+end
+
+local bankOpen, mailOpen = false, false
+local function isOpen(flag, frameName)
+    if flag then return true end
+    local f = _G[frameName]
+    if f and f.IsShown then
+        local ok, shown = pcall(f.IsShown, f)
+        return ok and shown and true or false
+    end
+    return false
+end
+
+local function scanBags(rec, ids)
+    local atBank = isOpen(bankOpen, "BankFrame")
+    for id in pairs(ids) do
+        local ok, bags = pcall(GetItemCount, id, false)
+        bags = (ok and clean(bags)) or 0
+        setField(rec.items, id, "bags", bags)
+        -- The bank part only counts when the client knows the bank; while
+        -- it is closed, keep what we saw last time unless it shows more.
+        local bank = ns.Count(id) - bags
+        if bank > 0 or atBank then setField(rec.items, id, "bank", bank) end
+    end
+end
+
+local function inboxItemID(i, a, itemID)
+    if type(itemID) == "number" then return itemID end
+    if not GetInboxItemLink then return nil end
+    local ok, link = pcall(GetInboxItemLink, i, a)
+    if ok and type(clean(link)) == "string" then return tonumber(link:match("item:(%d+)")) end
+end
+
+local function scanMail(rec, ids)
+    if not isOpen(mailOpen, "MailFrame") or not GetInboxNumItems or not GetInboxItem then return false end
+    local okN, num = pcall(GetInboxNumItems)
+    num = okN and tonumber(clean(num)) or nil
+    if not num then return false end
+    local counts = {}
+    local maxAtt = tonumber(_G.ATTACHMENTS_MAX_RECEIVE) or 16
+    for i = 1, num do
+        for a = 1, maxAtt do
+            local ok, name, itemID, _, count = pcall(GetInboxItem, i, a)
+            if ok and clean(name) then
+                local id = inboxItemID(i, a, clean(itemID))
+                if id and ids[id] then
+                    counts[id] = (counts[id] or 0) + (tonumber(clean(count)) or 1)
+                end
+            end
+        end
+    end
+    for id in pairs(ids) do setField(rec.items, id, "mail", counts[id]) end
+    return true
+end
+
+-- Scans run at most every half second (bag and mail events come in bursts).
+local want = {}
+local function doScan()
+    if not (want.bags or want.mail) then return end
+    local rec = myRecord()
+    if not rec then return end
+    local ids = ns.TrackedItems()
+    for id in pairs(rec.items) do
+        if not ids[id] then rec.items[id] = nil end -- no longer used by the addon
+    end
+    local mailChanged = false
+    if want.bags and GetItemCount then scanBags(rec, ids) end
+    if want.mail then mailChanged = scanMail(rec, ids) end
+    want.bags, want.mail = nil, nil
+    if mailChanged then ns:RequestRefresh() end
+end
+
+local scanPending = false
+local function requestScan(kind)
+    want[kind] = true
+    if scanPending then return end
+    scanPending = true
+    C_Timer.After(0.5, function()
+        scanPending = false
+        local ok, err = pcall(doScan)
+        if not ok then geterrorhandler()(err) end
+    end)
+end
+
+-- Scan right now (the bank / mailbox is about to close, or we log out).
+local function scanNow(kind)
+    want[kind] = true
+    local ok, err = pcall(doScan)
+    if not ok then geterrorhandler()(err) end
+end
+
+-- What this character has in its mailbox (as last seen there).
+function ns.CountMail(id)
+    local rec = myEntry()
+    local e = rec and type(rec.items) == "table" and rec.items[id]
+    return (type(e) == "table" and tonumber(e.mail)) or 0
+end
+
+local realmSet
+local function myRealms(id)
+    if realmSet then return realmSet end
+    realmSet = { [id.realm] = true }
+    if GetAutoCompleteRealms then
+        local ok, list = pcall(GetAutoCompleteRealms)
+        if ok and type(list) == "table" then
+            for _, r in ipairs(list) do
+                if type(r) == "string" then realmSet[r] = true end
+            end
+        end
+    end
+    return realmSet
+end
+
+-- Optional: Syndicator knows every character too (often fresher). Its
+-- characters win over our own cache when both have one.
+local function fromSyndicator(itemID, id, out)
+    local S = _G.Syndicator
+    local api = type(S) == "table" and S.API
+    if type(api) ~= "table" or type(api.GetInventoryInfoByItemID) ~= "function" then return end
+    if type(api.IsReady) == "function" then
+        local ok, ready = pcall(api.IsReady)
+        if not ok or not ready then return end
+    end
+    local ok, info = pcall(api.GetInventoryInfoByItemID, itemID, true, true) -- same realm, same faction
+    if not ok or type(info) ~= "table" or type(info.characters) ~= "table" then return end
+    for _, c in ipairs(info.characters) do
+        if type(c) == "table" and type(c.character) == "string" then
+            local realm = type(c.realmNormalized) == "string" and c.realmNormalized or id.realm
+            local key = c.character .. "-" .. realm
+            local bags, bank, mail = tonumber(c.bags) or 0, tonumber(c.bank) or 0, tonumber(c.mail) or 0
+            if key ~= id.key and bags + bank + mail > 0 then
+                out[key] = { name = c.character, realm = realm, class = c.className,
+                             bags = bags, bank = bank, mail = mail, count = bags + bank + mail }
+            end
+        end
+    end
+end
+
+-- How many of an item your other characters hold (bags + bank + mailbox),
+-- same realm (or connected realms) and same faction only, since only those
+-- can mail it to you. Returns total, list of { name, count, bags, bank,
+-- mail, class } sorted by count (most first). The current character is
+-- never in the list.
+function ns.CountAlts(itemID)
+    local list, total = {}, 0
+    local id = whoAmI()
+    if not itemID or not id or not ns.db then return 0, list end
+    local found = {}
+    fromSyndicator(itemID, id, found)
+    local chars = ns.db.chars
+    if type(chars) == "table" then
+        local realms, faction = myRealms(id), factionLetter()
+        for key, rec in pairs(chars) do
+            if key ~= id.key and not found[key] and type(rec) == "table" and type(rec.items) == "table"
+                and realms[rec.realm] and rec.faction == faction then
+                local e = rec.items[itemID]
+                if type(e) == "table" then
+                    local bags, bank, mail = tonumber(e.bags) or 0, tonumber(e.bank) or 0, tonumber(e.mail) or 0
+                    if bags + bank + mail > 0 then
+                        found[key] = { name = rec.name, realm = rec.realm, class = rec.class,
+                                       bags = bags, bank = bank, mail = mail, count = bags + bank + mail }
+                    end
+                end
+            end
+        end
+    end
+    for _, c in pairs(found) do
+        if type(c.name) ~= "string" then c.name = "?" end
+        if c.realm and c.realm ~= id.realm then c.name = c.name .. "-" .. c.realm end
+        total = total + c.count
+        table.insert(list, c)
+    end
+    table.sort(list, function(a, b)
+        if a.count ~= b.count then return a.count > b.count end
+        return a.name < b.name
+    end)
+    return total, list
+end
+
+-- Everything outside this character's bags + bank: the mailbox first, then
+-- the alts. Returns total, list of { name, count, mailbox = true for the mailbox }
+-- (alt entries are the ones from ns.CountAlts).
+function ns.CountElsewhere(itemID)
+    local lines = {}
+    local mail = ns.CountMail(itemID)
+    if mail > 0 then table.insert(lines, { name = L["Mailbox"], count = mail, mailbox = true }) end
+    local alts, list = ns.CountAlts(itemID)
+    for _, c in ipairs(list) do table.insert(lines, c) end
+    return mail + alts, lines
+end
+
+-- "Name" colored by class when we know it.
+function ns.CharName(entry)
+    local name = entry and entry.name or "?"
+    local cc = entry and entry.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[entry.class]
+    if cc and cc.colorStr then return "|c" .. cc.colorStr .. name .. "|r" end
+    return name
+end
+
+-- /dusty forget Name: drop a deleted or transferred character from the cache.
+function ns.ForgetChar(who)
+    who = type(who) == "string" and who:lower() or ""
+    local chars = ns.db and ns.db.chars
+    if who == "" or type(chars) ~= "table" then return 0 end
+    local n = 0
+    for key, rec in pairs(chars) do
+        local name = type(rec) == "table" and type(rec.name) == "string" and rec.name:lower()
+        if key:lower() == who or name == who then
+            chars[key] = nil
+            n = n + 1
+        end
+    end
+    return n
+end
+
+ns:On("PLAYER_LOGIN", function() C_Timer.After(5, function() requestScan("bags") end) end)
+ns:On("BAG_UPDATE_DELAYED", function() requestScan("bags") end)
+ns:On("PLAYERBANKSLOTS_CHANGED", function() requestScan("bags") end)
+ns:On("BANKFRAME_OPENED", function() bankOpen = true requestScan("bags") end)
+ns:On("BANKFRAME_CLOSED", function() scanNow("bags") bankOpen = false end)
+ns:On("MAIL_SHOW", function() mailOpen = true end)
+ns:On("MAIL_INBOX_UPDATE", function() requestScan("mail") end)
+ns:On("MAIL_CLOSED", function() mailOpen = false end) -- the inbox may read as empty once closed: no scan
+ns:On("PLAYER_LOGOUT", function() scanNow("bags") end)
+-- Modern clients also announce the bank and mailbox this way.
+local PIT = Enum and Enum.PlayerInteractionType
+ns:On("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", function(kind)
+    if not PIT or not kind then return end
+    if kind == PIT.Banker then bankOpen = true requestScan("bags")
+    elseif kind == PIT.MailInfo then mailOpen = true end -- MAIL_INBOX_UPDATE follows with the contents
+end)
+ns:On("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", function(kind)
+    if not PIT or not kind then return end
+    if kind == PIT.Banker then scanNow("bags") bankOpen = false
+    elseif kind == PIT.MailInfo then mailOpen = false end
+end)
 
 ---------------------------------------------------------------------------
 -- Chat: open the chat box / put a link in it (the API moved to ChatFrameUtil)
@@ -217,6 +571,20 @@ function ns.RecipeLink(spellID)
         local ok, link = pcall(getLink, spellID)
         if ok and clean(link) and link ~= "" then return link end
     end
+end
+
+-- A zone from our data (English name, Data\Places.lua) as the player's client
+-- calls it: the map's own name on a non-English client, else the locale table.
+function ns.ZoneName(name)
+    if type(name) ~= "string" then return name end
+    local id = ns.ZONE_MAPS and ns.ZONE_MAPS[name]
+    if id and not ns.ClientIsEnglish() and C_Map and C_Map.GetMapInfo then
+        local ok, info = pcall(C_Map.GetMapInfo, id)
+        if ok and type(info) == "table" and type(info.name) == "string" and info.name ~= "" then
+            return info.name
+        end
+    end
+    return L[name]
 end
 
 function ns.IconString(icon, size)
@@ -367,6 +735,8 @@ ns:On("ADDON_LOADED", function(name)
     DustyThreadyDB = fill(DustyThreadyDB or {}, DEFAULTS)
     DustyThreadyCharDB = fill(DustyThreadyCharDB or {}, CHAR_DEFAULTS)
     ns.db, ns.char = DustyThreadyDB, DustyThreadyCharDB
+    -- "/dusty locale deDE": a language other than the client's (nil = the client's).
+    if type(ns.db.locale) == "string" then ns.SetLocale(ns.db.locale) end
     ns:Fire("DT_READY")
 end)
 
@@ -379,7 +749,7 @@ ns:On("PLAYER_LOGIN", function()
     if not ns.db.welcomed then
         ns.db.welcomed = true
         print(ns.IconString(ns.ICON, 16) .. " " .. ns.Color("violet", "Dusty") .. ns.Color("gold", "Thready") ..
-            " is ready. Type " .. ns.Color("gold", "/dusty") .. " or click the minimap button.")
+            " " .. L["is ready. Type %s or click the minimap button."]:format(ns.Color("gold", "/dusty")))
     end
 end)
 
@@ -403,6 +773,31 @@ SlashCmdList.DUSTYTHREADY = function(msg)
         ns.db.minimap.hide = not ns.db.minimap.hide
         ns:Fire("DT_MINIMAP")
         return
+    elseif msg:find("^forget%s") then
+        local who = msg:match("^forget%s+(.-)$") or ""
+        local n = ns.ForgetChar(who)
+        print(ns.Color("violet", "Dusty") .. ns.Color("gold", "Thready") .. ": " ..
+            (n > 0 and L["forgot %s's materials."]:format(who) or L["no saved character called %s."]:format(who)))
+        return
+    elseif msg == "locale" or msg:find("^locale%s") then
+        -- /dusty locale deDE | frFR | enUS | auto (the client's language)
+        local want = msg:match("^locale%s+(%S+)") or ""
+        local codes = { auto = "auto", enus = "enUS", engb = "enUS", dede = "deDE", frfr = "frFR" }
+        for code in pairs(ns.LOCALES) do codes[code:lower()] = code end
+        local code = codes[want]
+        if not code then
+            local have = { "enUS" }
+            for c in pairs(ns.LOCALES) do table.insert(have, c) end
+            table.sort(have)
+            print(ns.Color("violet", "DustyThready:") .. " /dusty locale " .. table.concat(have, " | ") .. " | auto  (" ..
+                L["now: %s"]:format(ns.Locale()) .. ")")
+            return
+        end
+        ns.db.locale = (code ~= "auto") and code or nil
+        local used = ns.SetLocale(ns.db.locale)
+        print(ns.Color("violet", "DustyThready:") .. " " .. L["Language: %s. Type /reload to update every text."]:format(used))
+        ns:RequestRefresh()
+        return
     elseif msg == "reset" then
         ns.db.window = nil
         if ns.Main then ns.Main:ResetPosition() end
@@ -422,7 +817,7 @@ function DustyThready_OnCompartmentClick() ns.Toggle() end
 function DustyThready_OnCompartmentEnter(_, button)
     GameTooltip:SetOwner(button or UIParent, "ANCHOR_LEFT")
     GameTooltip:AddLine(ns.Color("violet", "Dusty") .. ns.Color("gold", "Thready"))
-    GameTooltip:AddLine("Click to open your Tailoring + Enchanting companion.", 1, 1, 1, true)
+    GameTooltip:AddLine(L["Click to open your Tailoring + Enchanting companion."], 1, 1, 1, true)
     GameTooltip:Show()
 end
 function DustyThready_OnCompartmentLeave() GameTooltip:Hide() end

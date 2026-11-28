@@ -38,16 +38,38 @@ Run through this before each release:
    Recipe icon (Today and Roadmap): shift-click links the crafted item (enchants: the recipe),
    shift-right-click the pattern/formula, or the recipe if it's trainer-taught. With chat closed,
    chat opens with the link. Shift-click a mat chip still links the item.
-5. **Disenchant**: put greens in bags; rows appear with odds and value; hover the button and click
-   to disenchant; *Keep* hides an item; *Cheat sheet* lists kept items and un-keeps them.
+   Recipe colour shows next to the skill on Today ("yellow", "about N" crafts) and on the current
+   Roadmap row; it comes from `Data/RecipeSkill.lua` (the client reports none).
+5. **Disenchant**: put greens in bags; rows are grouped by advice (*Disenchant: your Enchanting
+   needs these* / *Disenchant and sell* / *Sell on the AH* / *Sell to a vendor*), each with a one-line
+   reason; the summary lists the counts. The advised action is the bright button: hover + click
+   Disenchant works; on a vendor row, **Sell** is dim until a merchant is open, then sells it; the
+   quiet Disenchant button still works. *Hide* hides an item; *Cheat sheet* lists hidden items and
+   un-hides them. Today's bag line and the Gold tab's first card show the same counts.
+   **Disenchant next key** (Options > Keybindings > AddOns > DustyThready): one press = one
+   disenchant of the top advised item; pressing again during the cast does nothing (never equips);
+   in combat it only prints a line; it skips sell/vendor items.
 6. Enter combat with the window open: you can still move and close it; the Disenchant list says
    it will update after combat; no "action blocked" message.
 7. **NPC links** (map icon before a name: Where tab, Roadmap notes, Today alerts): click opens the
    map on the right zone with the DustyThready pin on the NPC; hover shows coordinates; right-click
    the pin removes it. Clicking a link in a Today alert doesn't switch to the Where tab.
    **Where** and **Gold**: faction filter correct; *Write my ad* opens chat with the text (not sent).
-8. Tooltips: a green shows *Disenchants into*; a reagent shows *still needs N*; toggle in Settings.
+8. Tooltips: a green shows *Disenchants into*, AH / DE / vendor values and the advice; a reagent
+   shows *still needs N*; a pattern/formula says known / needed at N / not on your path; toggle in
+   Settings.
 9. `/dusty minimap`, `/dusty reset`, drag the minimap button.
+10. **Trade** (needs an alt or a friend): open a trade, they put an item in *Will not be traded*;
+    the panel next to the trade window lists fitting enchants with mats and a tip; **Enchant**
+    applies it (watch for "action blocked"); *Post my menu* opens a whisper (right-click: `/2`).
+11. **Alts and mail**: an alt with cloth in bags/bank logs in once; back on the main, a short mat chip
+    shows *(+N alts)*, its tooltip lists who has it; open the mailbox with mats attached: *(+N mail)*.
+    `/dusty forget <name>` removes an alt.
+12. **Endgame tab** only at skill 250+; Mooncloth cooldown and alert on a tailor who knows it.
+    Footer shows *This session: +N Tailoring...* after a skill-up or a disenchant. Entering a cloth
+    zone for your level prints one hint (Settings checkbox turns it off).
+13. **Locale**: `/dusty locale deDE`, `/reload`: German texts, no clipped buttons, binding name in
+    German; `/dusty locale auto` to go back.
 
 ## Updating game data
 

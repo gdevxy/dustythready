@@ -137,3 +137,20 @@ ns.CLOTH_FARMS = {
         { "Felwood", "Jaedenar satyrs & Deadwood furbolgs", "N" },
         { "Burning Steppes", "Blackrock orcs", "N" }, { "Azshara", "Haldarr & Legashi satyrs", "N" } } },
 }
+
+-- UiMapID of every zone named above (English name -> map), so zones are matched
+-- by ID and shown with the client's own (localized) map name. Names that are no
+-- single zone map ("Dalaran", "Uldaman (Badlands)", "Auction House"...) are
+-- left out: they are shown through the locale table instead.
+ns.ZONE_MAPS = {
+    ["Durotar"] = 1411, ["The Barrens"] = 1413, ["Arathi Highlands"] = 1417, ["Badlands"] = 1418,
+    ["Tirisfal Glades"] = 1420, ["Silverpine Forest"] = 1421, ["Eastern Plaguelands"] = 1423,
+    ["Hillsbrad Foothills"] = 1424, ["Burning Steppes"] = 1428, ["Elwynn Forest"] = 1429,
+    ["Duskwood"] = 1431, ["Redridge Mountains"] = 1433, ["Stranglethorn Vale"] = 1434,
+    ["Westfall"] = 1436, ["Teldrassil"] = 1438, ["Darkshore"] = 1439, ["Thousand Needles"] = 1441,
+    ["Stonetalon Mountains"] = 1442, ["Desolace"] = 1443, ["Dustwallow Marsh"] = 1445,
+    ["Tanaris"] = 1446, ["Azshara"] = 1447, ["Felwood"] = 1448, ["Moonglade"] = 1450,
+    ["Silithus"] = 1451, ["Winterspring"] = 1452, ["Stormwind"] = 1453, ["Orgrimmar"] = 1454,
+    ["Ironforge"] = 1455, ["Thunder Bluff"] = 1456, ["Darnassus"] = 1457, ["Undercity"] = 1458,
+    ["Mount Hyjal"] = 2482, ["Zephras Isle"] = 2521,
+}

@@ -1,6 +1,7 @@
 -- DustyThready: minimap button through LibDataBroker + LibDBIcon, the standard
 -- every minimap-button manager (Leatrix Plus, MinimapButtonButton, ...) understands.
 local _, ns = ...
+local L = ns.L
 
 local LDB = LibStub and LibStub("LibDataBroker-1.1", true)
 local DBIcon = LibStub and LibStub("LibDBIcon-1.0", true)
@@ -11,19 +12,19 @@ local function tooltip(tt)
     local snap = ns.Snapshot()
     for _, prof in ipairs({ "tailoring", "enchanting" }) do
         local p = snap[prof]
-        local label = prof == "tailoring" and ns.Color("gold", "Tailoring") or ns.Color("violet", "Enchanting")
+        local label = prof == "tailoring" and ns.Color("gold", L["Tailoring"]) or ns.Color("violet", L["Enchanting"])
         if p then
             local step = ns.CurrentStep(prof, p.skill)
-            local nextUp = step and (ns.Color("muted", "  next: ") .. (step.out and ns.ItemName(step.out) or ns.SpellName(step.spell, step.name))) or ""
+            local nextUp = step and (ns.Color("muted", "  " .. L["next:"] .. " ") .. (step.out and ns.ItemName(step.out) or ns.SpellName(step.spell, step.name))) or ""
             tt:AddLine(("%s %d/%d%s"):format(label, p.skill, p.max, nextUp), 1, 1, 1)
         else
-            tt:AddLine(label .. ns.Color("muted", "  not learned"), 1, 1, 1)
+            tt:AddLine(label .. ns.Color("muted", "  " .. L["not learned"]), 1, 1, 1)
         end
     end
     local n = #ns.ScanBags()
-    if n > 0 then tt:AddLine(ns.Color("warn", n .. " item(s) to disenchant")) end
+    if n > 0 then tt:AddLine(ns.Color("warn", L["%d item(s) to disenchant"]:format(n))) end
     tt:AddLine(" ")
-    tt:AddLine(ns.Color("muted", "Click: open  ·  Right-click: disenchant  ·  Drag: move"))
+    tt:AddLine(ns.Color("muted", L["Click: open  ·  Right-click: disenchant  ·  Drag: move"]))
 end
 
 local registered = false

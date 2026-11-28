@@ -10,9 +10,10 @@
 --     with the target the player picked; if that API is missing we cast the
 --     recipe and apply it to the target while the spell is waiting for one.
 local _, ns = ...
+local L = ns.L
 
 local LINE = { tailoring = 197, enchanting = 333 }
-local LABEL = { tailoring = "Tailoring", enchanting = "Enchanting" }
+local LABEL = { tailoring = "Tailoring", enchanting = "Enchanting" } -- shown through L[]
 local NUM_BAGS = (NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4)
 local GetItemCount = (C_Item and C_Item.GetItemCount) or _G.GetItemCount
 
@@ -58,10 +59,16 @@ local function knownState(prof, spell)
 end
 ns.RecipeLearnedState = knownState
 
+-- Localized word with an English article ("an Expert"). Translated languages
+-- get the word alone: their sentences are written around it in Locales\.
+function ns.Article(word)
+    word = L[word]
+    if ns.IsTranslated() then return word end
+    return (word:match("^[AEIOUaeiou]") and "an " or "a ") .. word
+end
+
 -- For a recipe a trainer teaches (no pattern/formula): the rank whose trainers
 -- teach it and the first trainer for your faction, e.g. Expert + Kitta Firewind.
-function ns.Article(word) return (word:match("^[AEIOUaeiou]") and "an " or "a ") .. word end
-
 function ns.RecipeTrainer(prof, step, faction)
     local r = ns.RankForSkill(step.from)
     return r, ns.TrainersFor(prof, r.key, faction)[1]
@@ -82,7 +89,8 @@ end
 ---------------------------------------------------------------------------
 -- Enchant targets
 ---------------------------------------------------------------------------
--- "Enchant <Slot> - ..." -> equip locations and the equipment slots to look at.
+-- Slot key -> equip locations and the equipment slots to look at. The keys
+-- (and nouns) are English: show them through L[].
 local SLOTS = {
     ["Bracer"]    = { locs = { INVTYPE_WRIST = true }, inv = { 9 }, noun = "bracer" },
     ["Chest"]     = { locs = { INVTYPE_CHEST = true, INVTYPE_ROBE = true }, inv = { 5 }, noun = "chest piece" },
@@ -95,10 +103,63 @@ local SLOTS = {
                                INVTYPE_2HWEAPON = true }, inv = { 16, 17 }, noun = "weapon" },
 }
 
+ns.ENCHANT_SLOT_ORDER = { "Bracer", "Chest", "Cloak", "Boots", "Gloves", "Shield", "2H Weapon", "Weapon" }
+
+function ns.EnchantSlotInfo(key) return key and SLOTS[key] end
+
+-- Fallback for enchants missing from ns.ENCHANT_SLOT (Data\EnchantSlots.lua):
+-- the slot word inside a localized spell name. Lower-case ASCII words, checked
+-- in this order ("2H Weapon" before "Weapon": "Zweihandwaffe" contains "waffe").
+local SLOT_WORDS = {
+    { "2H Weapon", { "2h weapon", "2h-waffe", "zweihand", "arme 2m", "deux mains" } },
+    { "Bracer",    { "bracer", "armschiene", "bracelet", "brassard" } },
+    { "Chest",     { "chest", "brust", "plastron", "torse" } },
+    { "Cloak",     { "cloak", "umhang", "cape" } },
+    { "Boots",     { "boots", "stiefel", "bottes" } },
+    { "Gloves",    { "gloves", "handschuhe", "gants" } },
+    { "Shield",    { "shield", "schild", "bouclier" } },
+    { "Weapon",    { "weapon", "waffe", "arme" } },
+}
+-- A name only counts as an enchant when it looks like one in some language
+-- (Tailoring recipes like "Runecloth Gloves" must not match).
+local ENCHANT_MARKS = { "^enchant ", " verzaubern$", "^enchantement", "^enchanter " }
+
+-- Slot key ("Bracer", "2H Weapon"...) for an enchant spell, or nil.
+function ns.EnchantSlotKey(spell, name)
+    local key = spell and ns.ENCHANT_SLOT and ns.ENCHANT_SLOT[spell]
+    if key then return key end
+    if type(name) ~= "string" then return nil end
+    local en = name:match("^Enchant (.-) %- ")
+    if en and SLOTS[en] then return en end
+    local low = name:lower()
+    local isEnchant = false
+    for _, mark in ipairs(ENCHANT_MARKS) do
+        if low:find(mark) then isEnchant = true break end
+    end
+    if not isEnchant or not low:find(" %- ") then return nil end
+    local head = low:match("^(.-) %- ") or low
+    for _, sw in ipairs(SLOT_WORDS) do
+        for _, word in ipairs(sw[2]) do
+            if head:find(word, 1, true) then return sw[1] end
+        end
+    end
+    return nil
+end
+
+-- The effect part of an enchant name: "Strength" from "Enchant Bracer - Strength"
+-- (or "Armschiene - Stärke verzaubern"), else the whole name.
+function ns.EnchantShort(name)
+    if type(name) ~= "string" then return "" end
+    local s = name:match("^Enchant .- %- (.+)$")
+        or name:match("^.- %- (.+) verzaubern$")
+        or name:match("^.- %- (.+)$")
+        or name:match("%((.+)%)$")
+    return s or name
+end
+
 -- Slot info if this step is an enchant that goes on an item, else nil.
 function ns.EnchantSlot(step)
-    local slot = step.name and step.name:match("^Enchant (.-) %- ")
-    return slot and SLOTS[slot]
+    return SLOTS[ns.EnchantSlotKey(step.spell, step.name) or ""]
 end
 
 local function itemLocation(c)
@@ -164,20 +225,20 @@ end
 -- State for the Craft button: { enabled, label, tip, n, target, targets, slot }
 ---------------------------------------------------------------------------
 function ns.CraftState(prof, step, crafts, snap)
-    local st = { enabled = false, label = "Craft" }
+    local st = { enabled = false, label = L["Craft"] }
     if not ns.CanCraftAPI() then
-        st.tip = "Crafting from here isn't supported by this game client."
+        st.tip = L["Crafting from here isn't supported by this game client."]
         return st
     end
     local p = snap and snap[prof]
     if p and p.skill >= p.max and p.max < 300 then
-        st.label = "Train first"
-        st.tip = ("Your %s is capped at %d: train the next rank, or crafting won't give skill."):format(LABEL[prof], p.max)
+        st.label = L["Train first"]
+        st.tip = L["Your %s is capped at %d: train the next rank, or crafting won't give skill."]:format(L[LABEL[prof]], p.max)
         return st
     end
     if InCombatLockdown() then
-        st.label = "In combat"
-        st.tip = "You can craft again after combat."
+        st.label = L["In combat"]
+        st.tip = L["You can craft again after combat."]
         return st
     end
     local learned = knownState(prof, step.spell)
@@ -185,34 +246,34 @@ function ns.CraftState(prof, step, crafts, snap)
         -- Never seen this profession's recipe list: open it first so we know
         -- whether this recipe is learned (the click only opens it, see DoCraft).
         st.enabled = true
-        st.label = "Open"
-        st.tip = ("Opens %s to check you've learned this recipe. Then click again."):format(LABEL[prof])
+        st.label = L["Open"]
+        st.tip = L["Opens %s to check you've learned this recipe. Then click again."]:format(L[LABEL[prof]])
         return st
     end
     if learned == false then
-        st.label = "Not learned"
+        st.label = L["Not learned"]
         local item = step.formula or step.pattern
         if item then
-            st.tip = "Learn it first: " .. ns.ItemName(item) .. " (see the Where tab)."
+            st.tip = L["Learn it first: %s (see the Where tab)."]:format(ns.ItemName(item))
         else
             local r, t = ns.RecipeTrainer(prof, step, snap and snap.faction)
-            st.tip = ("Learn it first from %s %s trainer%s."):format(ns.Article(r.name), LABEL[prof],
-                t and (": " .. t[1] .. ", " .. t[2]) or "")
+            st.tip = L["Learn it first from %s %s trainer%s."]:format(ns.Article(r.name), L[LABEL[prof]],
+                t and (": " .. t[1] .. ", " .. ns.ZoneName(t[2])) or "")
         end
         return st
     end
 
     local can = ns.CraftableFromBags(step)
     if can <= 0 then
-        st.label = "Need mats"
+        st.label = L["Need mats"]
         local miss = {}
         for _, m in ipairs(step.mats) do
             local ok, have = pcall(GetItemCount, m[1])
             have = (ok and ns.clean(have)) or 0
             if have < m[2] then table.insert(miss, ("%d %s"):format(m[2] - have, ns.ItemName(m[1]))) end
         end
-        st.tip = "For one craft you're missing " .. table.concat(miss, ", ") ..
-            ". Items in the bank don't count: take them out first."
+        st.tip = L["For one craft you're missing %s. Items in the bank don't count: take them out first."]
+            :format(table.concat(miss, ", "))
         return st
     end
 
@@ -220,22 +281,23 @@ function ns.CraftState(prof, step, crafts, snap)
     st.slot, st.targets, st.target = slot, targets, target
     if slot then
         if not target then
-            st.label = "No target"
-            st.tip = ("Carry or wear a %s to enchant (any old one works)."):format(slot.noun)
+            st.label = L["No target"]
+            st.tip = L["Carry or wear a %s to enchant (any old one works)."]:format(L[slot.noun])
             return st
         end
         st.n = 1
         st.enabled = true
-        st.label = "Enchant"
-        st.tip = "Puts the enchant on the item shown next to this button. Click the item to pick another." ..
-            "\nIf it already has an enchant, the game asks before replacing it."
+        st.label = L["Enchant"]
+        st.tip = L["Puts the enchant on the item shown next to this button. Click the item to pick another."] ..
+            "\n" .. L["If it already has an enchant, the game asks before replacing it."]
         return st
     end
 
     st.n = math.max(1, math.min(can, crafts or can))
     st.enabled = true
-    st.label = ("Craft ×%d"):format(st.n)
-    st.tip = ("Crafts %d (what you need for this step, as far as your bags allow).\nShift-click: craft just one."):format(st.n)
+    st.label = L["Craft ×%d"]:format(st.n)
+    st.tip = L["Crafts %d (what you need for this step, as far as your bags allow)."]:format(st.n) ..
+        "\n" .. L["Shift-click: craft just one."]
     return st
 end
 
@@ -246,9 +308,10 @@ function ns.SetupRecipeIcon(btn, prof, step)
     btn.spellID = step.spell
     btn.patternID = step.pattern or step.formula
     if btn.patternID then ns.ItemInfo(btn.patternID) end -- warm the cache so the link is ready
-    local what = btn.patternID and (prof == "tailoring" and "pattern" or "formula") or "recipe"
-    local left = step.out and "the item" or "the recipe"
-    btn.extra = ns.Color("gold", ("Shift-click: link %s.\nShift-right-click: link the %s."):format(left, what))
+    local left = step.out and L["Shift-click: link the item."] or L["Shift-click: link the recipe."]
+    local right = btn.patternID and (prof == "tailoring" and L["Shift-right-click: link the pattern."]
+        or L["Shift-right-click: link the formula."]) or L["Shift-right-click: link the recipe."]
+    btn.extra = ns.Color("gold", left .. "\n" .. right)
     if step.out then btn:SetItem(step.out) else btn:SetSpellIcon(step.spell) end
 end
 
@@ -277,7 +340,7 @@ function ns.DoCraft(prof, step, st, one)
     -- cancels the rest of a multi-craft, so only the first one would be made.
     if not ns.ProfessionOpen(prof) then
         pcall(t.OpenTradeSkill, LINE[prof])
-        say(LABEL[prof] .. " is open: click again.")
+        say(L["%s is open: click again."]:format(L[LABEL[prof]]))
         return
     end
 
@@ -295,7 +358,7 @@ function ns.DoCraft(prof, step, st, one)
 
     local n = one and 1 or st.n
     local ok, err = pcall(t.CraftRecipe, step.spell, n)
-    if not ok then say("Couldn't craft: " .. tostring(err)) end
+    if not ok then say(L["Couldn't craft: %s"]:format(tostring(err))) end
 end
 
 -- Keep the buttons honest when the profession window or combat state changes.
