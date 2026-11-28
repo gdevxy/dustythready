@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.2.2
 
 - Fix: material chips never showed *(+N alts)* or *(+N mail)*. WoW Forever has no realm name (only
   rulesets, and characters have a last name), so no character was saved, and a scan at logout
